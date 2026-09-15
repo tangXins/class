@@ -258,7 +258,9 @@
     <main class="main">
       <ClassManagement v-if="currentTab === 0" />
       <DrawQuestion v-else-if="currentTab === 1" />
-      <MessageBoard v-else />
+      <MessageBoard v-else-if="currentTab === 2" />
+      <QuestionBank v-else-if="currentTab === 3" />
+      <TextbookCatalog v-else-if="currentTab === 4" />
     </main>
 
     <!-- 全屏大屏消息（手机发消息时不管在哪个页面都弹出来） -->
@@ -323,6 +325,8 @@ import QRCode from 'qrcode'
 import ClassManagement from './views/ClassManagement.vue'
 import DrawQuestion from './views/DrawQuestion.vue'
 import MessageBoard from './views/MessageBoard.vue'
+import QuestionBank from './views/QuestionBank.vue'
+import TextbookCatalog from './views/TextbookCatalog.vue'
 import GlobalDialog from './components/GlobalDialog.vue'
 
 const currentTab = ref(0)
@@ -426,7 +430,9 @@ async function resetData() {
 const navItems = reactive([
   { icon: '📚', text: '班级管理', index: 0, badge: 0 },
   { icon: '🎯', text: '抽背系统', index: 1, badge: 0 },
-  { icon: '📺', text: '消息大屏', index: 2, badge: 0 }
+  { icon: '📺', text: '消息大屏', index: 2, badge: 0 },
+  { icon: '📝', text: '自定义题库', index: 3, badge: 0 },
+  { icon: '📖', text: '教材目录', index: 4, badge: 0 }
 ])
 
 // ========== Relay 状态 ==========

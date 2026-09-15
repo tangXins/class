@@ -57,6 +57,15 @@ function register(ipcMain, db) {
       })
   })
 
+  // ============ 教材目录（纯 JSON，与 SQLite 解耦）============
+  ipcMain.handle('catalog:get', () => {
+    const p = path.join(__dirname, '..', 'templates', 'catalog.json')
+    if (!fs.existsSync(p)) return null
+    try {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'))
+    } catch { return null }
+  })
+
   ipcMain.handle('db:applyTemplate', (_e, file, clear) => {
     const tplPath = path.join(__dirname, '..', 'templates', file)
     if (!fs.existsSync(tplPath)) return { error: '模板文件不存在' }

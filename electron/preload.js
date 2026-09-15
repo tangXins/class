@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('api', {
   listTemplates: () => ipcRenderer.invoke('db:listTemplates'),
   applyTemplate: (file, clear) => ipcRenderer.invoke('db:applyTemplate', file, clear),
 
+  // ============ 教材目录（纯 JSON，与 SQLite 解耦）============
+  catalog: () => ipcRenderer.invoke('catalog:get'),
+
   // ============ TTS ============
   tts: {
     speak: (text) => ipcRenderer.invoke('tts:speak', text),
