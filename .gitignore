@@ -5,6 +5,8 @@ node_modules/
 dist/
 release/
 release-fix*/
+6.7.0/
+android/
 
 # IDE / 系统
 .trae/
@@ -13,6 +15,10 @@ release-fix*/
 *.log
 .DS_Store
 Thumbs.db
+dev-err.txt
+dev-log.txt
+.npmrc
+preload.js
 
 # 数据库文件
 *.sqlite

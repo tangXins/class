@@ -61,11 +61,11 @@ function safeSend(channel, data) {
 // ========== 应用配置（持久化） ==========
 let appConfig = {
   className: '未命名教室',
-  relayUrl: 'ws://localhost:9000',
-  relayMode: 'lan',        // 'lan' 局域网（同 WiFi） | 'public' 公网（任意网络）
-  publicRelayUrl: '',      // 公网模式地址，如 wss://classmanager-relay.onrender.com
+  relayUrl: 'wss://classmanager-relay.onrender.com',
+  relayMode: 'public',
+  publicRelayUrl: 'wss://classmanager-relay.onrender.com',
   autoStartRelay: true,
-  theme: 'system'   // 'dark' | 'light' | 'system'
+  theme: 'system'
 }
 
 // ========== 已配对手机授权名单（本地持久化，register 时全量上报） ==========
@@ -282,13 +282,19 @@ function setupIpc() {
 
   // ============ Relay ============
   ipcMain.handle('relay:start', async (_e, relayUrl, name) => {
-    if (name) appConfig.className = name
-    const url = relayUrl || effectiveRelayUrl()
-    appConfig.relayUrl = url
-    saveConfig()
-    // 局域网地址 → 先确保内置 Relay 已启动；公网地址不需要
-    await ensureLocalRelayStarted(url)
-    return await relayClient.connect(url, appConfig.className, pairedMobiles)
+    try {
+      if (name) appConfig.className = name
+      const url = relayUrl || effectiveRelayUrl()
+      appConfig.relayUrl = url
+      saveConfig()
+      // 局域网地址 → 先确保内置 Relay 已启动；公网地址不需要
+      const ok = await ensureLocalRelayStarted(url)
+      if (!ok) return { ok: false, error: '本地局域网 Relay 启动失败（端口 9000 被占用？）' }
+      return await relayClient.connect(url, appConfig.className, pairedMobiles)
+    } catch (e) {
+      console.error('[relay:start] error:', e.message)
+      return { ok: false, error: e.message || '启动失败' }
+    }
   })
   ipcMain.handle('relay:stop', () => { relayClient.disconnect(); return { ok: true } })
   ipcMain.handle('relay:status', () => relayClient.getStatus())

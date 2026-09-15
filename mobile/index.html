@@ -216,15 +216,13 @@
     <div id="pinnedRooms"></div>
   </div>
 
-  <div class="rooms-section" style="margin-top:24px">
-    <div class="section-title">🔍 在线教室</div>
-    <div id="discoveredRooms">
-      <div class="empty"><div class="empty-icon">📡</div>正在搜索...</div>
-    </div>
-  </div>
-
   <div class="qr-btn-wrap" style="margin-top:24px">
     <button class="qr-btn" onclick="startScan()">📷 扫描教室二维码（配对新教室）</button>
+  </div>
+
+  <div class="empty" style="margin-top:28px;padding:12px 16px;font-size:12px;line-height:1.8;color:var(--text-dim);border:1px dashed rgba(255,255,255,0.08);border-radius:12px">
+    🔒 你只能看到自己配对过的教室。<br>
+    想进新教室？用手机扫描电脑屏幕上的二维码 → 输入一次配对码即可。
   </div>
 </div>
 
@@ -497,26 +495,19 @@ function sendJoin(deviceId, pairCode, content) {
   })
 }
 
-// ============ 渲染 ============
+// ============ 渲染（只显示自己配对过的教室）============
 function renderRooms() {
-  const all = [
-    ...state.pinnedHosts.map(p => {
-      const live = state.discovered.find(d => d.deviceId === p.deviceId)
-      return { ...p, online: !!live, isPinned: true }
-    }),
-    ...state.discovered
-      .filter(d => !state.pinnedHosts.find(p => p.deviceId === d.deviceId))
-      .map(d => ({ ...d, isPinned: false }))
-  ]
+  const pinned = state.pinnedHosts.map(p => {
+    const live = state.discovered.find(d => d.deviceId === p.deviceId)
+    return { ...p, online: !!live }
+  })
 
-  // 我的教室
   const pinnedEl = document.getElementById('pinnedRooms')
-  const pinned = all.filter(r => r.isPinned)
   if (pinned.length === 0) {
     pinnedEl.innerHTML = `<div class="empty">
       <div class="empty-icon">📋</div>
       还没有配对的教室
-      <div class="empty-tip">在教室电脑上点「连接云端」<br>用手机扫屏幕上的二维码，输入一次配对码即可<br>以后有网就能一键直连（WiFi/流量都行）</div>
+      <div class="empty-tip">在教室电脑上点「开启手机连接」<br>用手机扫屏幕上的二维码，输入一次配对码即可<br>以后有网就能一键直连（WiFi/流量都行）</div>
     </div>`
   } else {
     pinnedEl.innerHTML = pinned.map(r => `
@@ -533,60 +524,36 @@ function renderRooms() {
       </div>
     `).join('')
   }
-
-  // 在线但未配对
-  const discEl = document.getElementById('discoveredRooms')
-  const disc = all.filter(r => !r.isPinned && r.online)
-  if (disc.length === 0) {
-    discEl.innerHTML = `<div class="empty"><div class="empty-icon" style="font-size:36px">🔍</div>没发现在线教室</div>`
-  } else {
-    discEl.innerHTML = disc.map(r => `
-      <div class="room-card" onclick="tryJoinRoom('${r.deviceId}')">
-        <div class="room-avatar">🏫</div>
-        <div class="room-info">
-          <div class="room-name">${r.name}</div>
-          <div class="room-meta">
-            <span class="online-dot"></span> 在线
-            <span class="connect-tag">需配对码</span>
-          </div>
-        </div>
-      </div>
-    `).join('')
-  }
 }
 
 // ============ 点教室卡片 ============
 function tryJoinRoom(deviceId) {
   const pin = state.pinnedHosts.find(p => p.deviceId === deviceId)
-  const live = state.discovered.find(d => d.deviceId === deviceId)
-
-  if (pin) {
-    if (!live) { showToast('电脑端不在线，到教室打开软件后再试', true); return }
-    // 该教室在另一个服务器上 → 切换服务器后自动加入
-    if (pin.relayUrl && pin.relayUrl !== state.relayUrl) {
-      state.relayUrl = pin.relayUrl
-      localStorage.setItem('cm_relay', pin.relayUrl)
-      state._pendingDeviceId = deviceId
-      if (state.ws) { try { state.ws.close() } catch {} }
-      connect()
-      showToast('正在进入「' + pin.name + '」...')
-      return
-    }
-    state._pendingDeviceId = deviceId
-    if (state.connected) {
-      sendJoin(deviceId, '', '')
-      showToast('正在进入「' + pin.name + '」...')
-    } else {
-      connect()
-    }
+  if (!pin) {
+    // 安全兜底：非自己配对的一律拒绝，必须走扫码+配对码
+    showToast('请扫描电脑屏幕上的二维码来配对这个教室', true)
     return
   }
+  const live = state.discovered.find(d => d.deviceId === deviceId)
+  if (!live) { showToast('电脑端不在线，到教室打开软件后再试', true); return }
 
-  // 未配对在线教室 → 输入配对码
-  if (!live) { showToast('教室离线了', true); return }
+  // 该教室在另一个服务器上 → 切换服务器后自动加入
+  if (pin.relayUrl && pin.relayUrl !== state.relayUrl) {
+    state.relayUrl = pin.relayUrl
+    localStorage.setItem('cm_relay', pin.relayUrl)
+    state._pendingDeviceId = deviceId
+    if (state.ws) { try { state.ws.close() } catch {} }
+    connect()
+    showToast('正在进入「' + pin.name + '」...')
+    return
+  }
   state._pendingDeviceId = deviceId
-  state._pendingRoomName = live.name
-  openPairModal(live.name)
+  if (state.connected) {
+    sendJoin(deviceId, '', '')
+    showToast('正在进入「' + pin.name + '」...')
+  } else {
+    connect()
+  }
 }
 
 function openPairModal(roomName) {
