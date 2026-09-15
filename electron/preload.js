@@ -24,14 +24,18 @@ contextBridge.exposeInMainWorld('api', {
   addSubject: (name, gradeId) => ipcRenderer.invoke('db:addSubject', name, gradeId),
   updateSubject: (id, name, gradeId) => ipcRenderer.invoke('db:updateSubject', id, name, gradeId),
   deleteSubject: (id) => ipcRenderer.invoke('db:deleteSubject', id),
-  // 题目
-  getQuestions: (subjectId) => ipcRenderer.invoke('db:getQuestions', subjectId),
-  addQuestion: (subjectId, title, content, weight) => ipcRenderer.invoke('db:addQuestion', subjectId, title, content, weight),
-  updateQuestion: (id, title, content, weight) => ipcRenderer.invoke('db:updateQuestion', id, title, content, weight),
+  // 题目（unit/category 支持）
+  getQuestions: (subjectId, options) => ipcRenderer.invoke('db:getQuestions', subjectId, options || {}),
+  getUnits: (subjectId, category) => ipcRenderer.invoke('db:getUnits', subjectId, category),
+  addQuestion: (subjectId, title, content, unit, category) => ipcRenderer.invoke('db:addQuestion', subjectId, title, content, unit || '', category || 'recit'),
+  updateQuestion: (id, title, content, unit, category) => ipcRenderer.invoke('db:updateQuestion', id, title, content, unit, category),
   deleteQuestion: (id) => ipcRenderer.invoke('db:deleteQuestion', id),
   // 抽背
-  randomStudent: (classId) => ipcRenderer.invoke('db:randomStudent', classId),
-  randomQuestion: (subjectId) => ipcRenderer.invoke('db:randomQuestion', subjectId),
+  randomStudent: (classId, skipCooldown) => ipcRenderer.invoke('db:randomStudent', classId, skipCooldown !== false),
+  randomQuestion: (subjectId, options) => ipcRenderer.invoke('db:randomQuestion', subjectId, options || {}),
+  // cooldown
+  updateStudentCooldown: (id, cooldown) => ipcRenderer.invoke('db:updateStudentCooldown', id, cooldown),
+  tickCooldowns: (classId) => ipcRenderer.invoke('db:tickCooldowns', classId),
 
   // ============ 模板 ============
   listTemplates: () => ipcRenderer.invoke('db:listTemplates'),

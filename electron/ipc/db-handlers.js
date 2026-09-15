@@ -28,15 +28,20 @@ function register(ipcMain, db) {
   ipcMain.handle('db:updateSubject', (_e, id, name, gradeId) => db.updateSubject(id, name, gradeId))
   ipcMain.handle('db:deleteSubject', (_e, id) => db.deleteSubject(id))
 
-  // 题目
-  ipcMain.handle('db:getQuestions', (_e, subjectId) => db.getQuestions(subjectId))
-  ipcMain.handle('db:addQuestion', (_e, subjectId, title, content, weight) => db.addQuestion(subjectId, title, content, weight))
-  ipcMain.handle('db:updateQuestion', (_e, id, title, content, weight) => db.updateQuestion(id, title, content, weight))
+  // 题目（unit/category 支持）
+  ipcMain.handle('db:getQuestions', (_e, subjectId, options) => db.getQuestions(subjectId, options || {}))
+  ipcMain.handle('db:getUnits', (_e, subjectId, category) => db.getUnits(subjectId, category || 'recit'))
+  ipcMain.handle('db:addQuestion', (_e, subjectId, title, content, unit, category) => db.addQuestion(subjectId, title, content, unit || '', category || 'recit'))
+  ipcMain.handle('db:updateQuestion', (_e, id, title, content, unit, category) => db.updateQuestion(id, title, content, unit, category))
   ipcMain.handle('db:deleteQuestion', (_e, id) => db.deleteQuestion(id))
 
-  // 加权随机抽
-  ipcMain.handle('db:randomStudent', (_e, classId) => db.randomStudent(classId))
-  ipcMain.handle('db:randomQuestion', (_e, subjectId) => db.randomQuestion(subjectId))
+  // 加权随机抽（学生自动跳过 cooldown）
+  ipcMain.handle('db:randomStudent', (_e, classId, skipCooldown) => db.randomStudent(classId, skipCooldown !== false))
+  ipcMain.handle('db:randomQuestion', (_e, subjectId, options) => db.randomQuestion(subjectId, options || {}))
+
+  // cooldown 管理
+  ipcMain.handle('db:updateStudentCooldown', (_e, id, cooldown) => db.updateStudentCooldown(id, cooldown))
+  ipcMain.handle('db:tickCooldowns', (_e, classId) => db.tickCooldowns(classId))
 
   // 模板
   ipcMain.handle('db:listTemplates', () => {

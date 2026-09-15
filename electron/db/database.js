@@ -79,10 +79,21 @@ class AppDatabase {
       this.db.run('ALTER TABLE students ADD COLUMN last_drawn TEXT')
     }
 
-    // 检查 questions.weight
+    // 检查 questions.weight / unit / category
     const qCols = this.query("PRAGMA table_info(questions)")
     if (!qCols.find(c => c.name === 'weight')) {
       this.db.run('ALTER TABLE questions ADD COLUMN weight INTEGER DEFAULT 1')
+    }
+    if (!qCols.find(c => c.name === 'unit')) {
+      this.db.run("ALTER TABLE questions ADD COLUMN unit TEXT DEFAULT ''")
+    }
+    if (!qCols.find(c => c.name === 'category')) {
+      this.db.run("ALTER TABLE questions ADD COLUMN category TEXT DEFAULT 'recit'")
+    }
+
+    // 检查 students.cooldown
+    if (!stuCols.find(c => c.name === 'cooldown')) {
+      this.db.run('ALTER TABLE students ADD COLUMN cooldown INTEGER DEFAULT 0')
     }
   }
 
@@ -183,32 +194,61 @@ class AppDatabase {
   deleteSubject(id) { this.run('DELETE FROM subjects WHERE id=?', [id]); this.save() }
 
   // ========== 题目 ==========
-  getQuestions(subjectId) { return this.query('SELECT * FROM questions WHERE subject_id=? ORDER BY id', [subjectId]) }
-  addQuestion(subjectId, title, content, weight = 1) {
-    this.run('INSERT INTO questions (subject_id, title, content, weight) VALUES (?, ?, ?, ?)', [subjectId, title, content, weight])
+  // options: { unit, category } —— 可选筛选
+  getQuestions(subjectId, options = {}) {
+    let sql = 'SELECT * FROM questions WHERE subject_id=?'
+    const params = [subjectId]
+    if (options.category) { sql += ' AND category=?'; params.push(options.category) }
+    if (options.units && options.units.length) {
+      sql += ` AND unit IN (${options.units.map(() => '?').join(',')})`
+      params.push(...options.units)
+    }
+    sql += ' ORDER BY id'
+    return this.query(sql, params)
+  }
+
+  // 获取某学科所有已用单元（去重）
+  getUnits(subjectId, category = 'recit') {
+    return this.query('SELECT DISTINCT unit FROM questions WHERE subject_id=? AND category=? AND unit != "" ORDER BY id', [subjectId, category])
+      .map(r => r.unit)
+  }
+
+  addQuestion(subjectId, title, content, unit = '', category = 'recit') {
+    this.run('INSERT INTO questions (subject_id, title, content, unit, category, weight) VALUES (?, ?, ?, ?, ?, 1)', [subjectId, title, content, unit, category])
     const id = this.lastId()
     this.save()
     return id
   }
-  updateQuestion(id, title, content, weight) {
-    this.run('UPDATE questions SET title=?, content=?, weight=? WHERE id=?', [title, content, weight !== undefined ? weight : 1, id])
+  updateQuestion(id, title, content, unit, category) {
+    this.run('UPDATE questions SET title=?, content=?, unit=?, category=? WHERE id=?', [title, content, unit || '', category || 'recit', id])
     this.save()
   }
   deleteQuestion(id) { this.run('DELETE FROM questions WHERE id=?', [id]); this.save() }
 
-  // ========== 加权随机抽（JS 端算法） ==========
-  // 学生：按 weight 权重抽
-  randomStudent(classId) {
-    const students = this.getStudents(classId)
+  // ========== 学生权重 + cooldown ==========
+  updateStudentCooldown(id, cooldown) {
+    this.run('UPDATE students SET cooldown=? WHERE id=?', [Math.max(0, cooldown), id])
+    this.save()
+  }
+  // 每轮抽完后所有 cooldown -1（不低于 0）
+  tickCooldowns(classId) {
+    this.run('UPDATE students SET cooldown = MAX(0, cooldown - 1) WHERE class_id=? AND cooldown > 0', [classId])
+    this.save()
+  }
+
+  // 加权随机抽 —— 自动跳过 cooldown > 0 的学生
+  randomStudent(classId, skipCooldown = true) {
+    let students = this.getStudents(classId)
+    if (skipCooldown) students = students.filter(s => !s.cooldown)
     if (!students.length) return null
     return this.weightedPick(students, 'weight')
   }
 
-  // 题目：按 subjectId 查 + 加权
-  randomQuestion(subjectId) {
-    const questions = this.getQuestions(subjectId)
+  // 题目：按 subjectId 查 + 纯随机（不再按 weight 抽，统一 1）
+  randomQuestion(subjectId, options = {}) {
+    const questions = this.getQuestions(subjectId, options)
     if (!questions.length) return null
-    return this.weightedPick(questions, 'weight')
+    return questions[Math.floor(Math.random() * questions.length)]
   }
 
   // 加权随机算法：累计权重 / Math.random()
@@ -225,9 +265,11 @@ class AppDatabase {
   }
 
   // ========== 模板应用 ==========
-  // template 结构: { grades: [{name, sortOrder, classes, subjects}], subjects: [] }
+  // template 结构:
+  //   { grades: [{name, sortOrder, classes, subjects}],
+  //     questions: { "年级名": { "学科名": [{title, unit, content, category}] } } }
   applyTemplate(template) {
-    const result = { grades: 0, classes: 0, subjects: 0, students: 0 }
+    const result = { grades: 0, classes: 0, subjects: 0, students: 0, questions: 0 }
 
     // 先清空（可选：让用户选覆盖/追加，这里先追加）
     if (template.clear) {
@@ -244,9 +286,26 @@ class AppDatabase {
 
       // 年级对应的学科
       const subjects = g.subjects || template.defaultSubjects || []
+      // 存学科名→subjectId 映射，后面导入 questions 要用
+      const subjectNameToId = {}
       for (const s of subjects) {
-        this.addSubject(typeof s === 'string' ? s : s.name, gradeId)
+        const name = typeof s === 'string' ? s : s.name
+        const sid = this.addSubject(name, gradeId)
+        subjectNameToId[name] = sid
         result.subjects++
+      }
+
+      // 导入该年级的 questions
+      if (template.questions && template.questions[g.name]) {
+        const gradeQs = template.questions[g.name]
+        for (const [subjectName, qList] of Object.entries(gradeQs)) {
+          const sid = subjectNameToId[subjectName]
+          if (!sid) continue
+          for (const q of qList) {
+            this.addQuestion(sid, q.title || '', q.content || '', q.unit || '', q.category || 'recit')
+            result.questions++
+          }
+        }
       }
 
       // 年级下的班级
