@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0d0d18">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>班级管理大师 · 手机端</title>
+<style>
+  :root {
+    --bg: #0d0d18;
+    --bg2: #161628;
+    --card: rgba(35,35,58,0.85);
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent2));
+    --text: #e8e8f0;
+    --text-dim: #888899;
+    --danger: #ff4757;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "微软雅黑", sans-serif; min-height: 100vh; }
+  body {
+    background: radial-gradient(1200px 600px at -10% -20%, rgba(124,58,237,0.25), transparent 60%),
+                radial-gradient(800px 500px at 110% 10%, rgba(0,212,255,0.2), transparent 55%),
+                var(--bg);
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+  .header { text-align: center; padding: 24px 0 16px; }
+  .header h1 { font-size: 22px; margin: 0; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
+  .header p { color: var(--text-dim); font-size: 13px; margin: 4px 0 0; }
+
+  .rooms-section { margin-top: 12px; }
+  .section-title { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; padding-left: 4px; }
+  .room-card {
+    background: var(--card);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+  .room-card:active { transform: scale(0.98); border-color: rgba(0,212,255,0.5); }
+  .room-card.offline { opacity: 0.55; }
+  .room-avatar {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--accent-gradient);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 4px 16px rgba(0,212,255,0.3);
+  }
+  .room-info { flex: 1; min-width: 0; }
+  .room-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .room-meta { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff88; display: inline-block; box-shadow: 0 0 8px #00ff88; }
+  .offline-dot { background: var(--text-dim); box-shadow: none; }
+
+  .pinned-tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 8px;
+    background: rgba(124,58,237,0.2); color: #b794ff;
+    border: 1px solid rgba(124,58,237,0.4);
+  }
+  .connect-tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 8px;
+    background: rgba(0,212,255,0.15); color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.35);
+  }
+
+  .rooms-actions { display: flex; gap: 8px; margin-top: 8px; }
+  .btn {
+    flex: 1; padding: 12px 16px; border-radius: var(--radius); border: none;
+    font-size: 15px; font-weight: 500; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent-gradient); color: white; box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
+  .btn-secondary { background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
+  .btn:active { transform: scale(0.97); }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.6; }
+  .empty-tip { font-size: 12px; opacity: 0.7; margin-top: 8px; line-height: 1.6; }
+
+  /* ========= 发送页 ========= */
+  .send-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .back-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .send-title { flex: 1; font-size: 16px; font-weight: 600; }
+
+  .target-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .target-label { font-size: 12px; color: var(--text-dim); }
+  .target-name { font-size: 18px; font-weight: 600; margin-top: 4px; }
+
+  textarea.msg-input {
+    width: 100%; min-height: 140px; padding: 14px;
+    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius); color: var(--text); font-size: 16px;
+    resize: none; font-family: inherit;
+    outline: none;
+  }
+  textarea.msg-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.15); }
+
+  .quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .quick-tag {
+    padding: 6px 14px; border-radius: 20px; font-size: 13px;
+    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+  }
+  .quick-tag:active { background: rgba(0,212,255,0.15); border-color: var(--accent); }
+
+  .send-btn {
+    width: 100%; padding: 16px; border-radius: var(--radius); border: none;
+    background: var(--accent-gradient); color: white; font-size: 17px;
+    font-weight: 600; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(124,58,237,0.5);
+  }
+  .send-btn:active { transform: scale(0.98); }
+  .send-btn.sending { opacity: 0.7; }
+
+  /* ========= Toast ========= */
+  .toast {
+    position: fixed; top: 32px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: var(--card); color: var(--text); padding: 12px 24px;
+    border-radius: 24px; backdrop-filter: blur(20px);
+    border: 1px solid rgba(0,212,255,0.3);
+    opacity: 0; transition: all 0.3s; z-index: 9999;
+    font-size: 14px; max-width: 86%; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { border-color: var(--danger); }
+
+  /* ========= 二维码扫描 ========= */
+  .qr-btn-wrap { margin-top: 16px; }
+  .qr-btn {
+    width: 100%; padding: 18px; border-radius: var(--radius); border: 2px dashed rgba(0,212,255,0.4);
+    background: rgba(0,212,255,0.05); color: var(--accent); font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .qr-btn:active { background: rgba(0,212,255,0.15); }
+
+  /* ========= 设置 ========= */
+  .settings-card {
+    background: var(--card); border-radius: var(--radius);
+    padding: 14px; margin-top: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .settings-row { display: flex; align-items: center; padding: 10px 4px; gap: 10px; }
+  .settings-row label { font-size: 13px; color: var(--text-dim); flex-shrink: 0; width: 80px; }
+  .settings-row input {
+    flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px;
+    outline: none;
+  }
+  .settings-row input:focus { border-color: var(--accent); }
+
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
+    background: rgba(13,13,24,0.95); backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab { flex: 1; padding: 12px; text-align: center; font-size: 12px; color: var(--text-dim); cursor: pointer; }
+  .tab.active { color: var(--accent); }
+  .tab-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+
+  /* ========= 配对弹窗 ========= */
+  .pair-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .pair-modal.show { opacity: 1; pointer-events: all; }
+  .pair-content {
+    background: var(--bg2); border-radius: 18px; padding: 28px; width: 85%; max-width: 340px;
+    border: 1px solid rgba(255,255,255,0.1); text-align: center;
+    transform: scale(0.85); transition: transform 0.2s;
+  }
+  .pair-modal.show .pair-content { transform: scale(1); }
+  .pair-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+  .pair-input {
+    width: 100%; padding: 16px; font-size: 28px; letter-spacing: 8px; text-align: center;
+    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; color: var(--accent); font-weight: 600;
+    outline: none; text-transform: uppercase;
+  }
+  .pair-input:focus { border-color: var(--accent); }
+  .pair-btns { display: flex; gap: 10px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<!-- ============ 页面 1：教室列表 ============ -->
+<div id="page-list">
+  <div class="header">
+    <h1>班级管理大师</h1>
+    <p id="relayStatus">🔄 初始化中...</p>
+  </div>
+
+  <div class="rooms-section">
+    <div class="section-title">📎 我的教室（配对过，点一下直接进）</div>
+    <div id="pinnedRooms"></div>
+  </div>
+
+  <div class="rooms-section" style="margin-top:24px">
+    <div class="section-title">🔍 在线教室</div>
+    <div id="discoveredRooms">
+      <div class="empty"><div class="empty-icon">📡</div>正在搜索...</div>
+    </div>
+  </div>
+
+  <div class="qr-btn-wrap" style="margin-top:24px">
+    <button class="qr-btn" onclick="startScan()">📷 扫描教室二维码（配对新教室）</button>
+  </div>
+</div>
+
+<!-- ============ 页面 2：发送消息 ============ -->
+<div id="page-send" style="display:none">
+  <div class="send-header">
+    <button class="back-btn" onclick="goBack()">‹</button>
+    <div class="send-title">发送消息</div>
+  </div>
+  <div class="target-card">
+    <div class="target-label">📌 已连接到</div>
+    <div class="target-name" id="targetName">—</div>
+  </div>
+  <textarea class="msg-input" id="msgInput" placeholder="输入要发送的消息，教室大屏会立即显示并语音播报..." onkeydown="if(event.key==='Enter'&&event.ctrlKey)sendMessage()"></textarea>
+  <div class="quick-tags" id="quickTags"></div>
+  <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+</div>
+
+<!-- ============ 页面 3：设置 ============ -->
+<div id="page-settings" style="display:none">
+  <div class="header">
+    <h1>⚙️ 设置</h1>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row">
+      <label>服务器</label>
+      <input type="text" id="relayUrlInput" placeholder="wss://your-relay.onrender.com">
+    </div>
+    <div class="settings-row">
+      <label>昵称</label>
+      <input type="text" id="senderInput" placeholder="你的名字（如：学生A）">
+    </div>
+  </div>
+  <div class="rooms-actions" style="margin-top:16px">
+    <button class="btn btn-secondary" onclick="saveSettings()">💾 保存并连接</button>
+    <button class="btn btn-secondary" onclick="clearPinned()">🗑️ 清除配对</button>
+  </div>
+  <div class="empty" style="padding:24px 12px;font-size:12px">
+    配对信息只保存在本手机浏览器中，清除浏览器数据会丢失配对。
+  </div>
+</div>
+
+<!-- ============ 底部 Tab ============ -->
+<div class="tab-bar">
+  <div class="tab active" data-tab="list" onclick="switchTab('list')"><span class="tab-icon">🏠</span>教室</div>
+  <div class="tab" data-tab="settings" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span>设置</div>
+</div>
+
+<!-- ============ Toast ============ -->
+<div class="toast" id="toast"></div>
+
+<!-- ============ 配对码输入弹窗 ============ -->
+<div class="pair-modal" id="pairModal">
+  <div class="pair-content">
+    <div class="pair-title" id="pairTitle">🔐 输入配对码</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">请看教室电脑屏幕上的 6 位配对码</div>
+    <input class="pair-input" id="pairCodeInput" maxlength="6" placeholder="------">
+    <div class="pair-btns">
+      <button class="btn btn-secondary" onclick="closePairModal()">取消</button>
+      <button class="btn btn-primary" onclick="confirmPair()">确认</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 设备身份：首次访问生成，永久保存 ============
+function getMobileId() {
+  let id = localStorage.getItem('cm_mobile_id')
+  if (!id) {
+    if (window.crypto && crypto.randomUUID) {
+      id = crypto.randomUUID().replace(/-/g, '')
+    } else {
+      id = 'm' + Date.now().toString(36) + Math.random().toString(16).slice(2, 14)
+    }
+    localStorage.setItem('cm_mobile_id', id)
+  }
+  return id
+}
+
+// ============ 全局状态 ============
+const state = {
+  mobileId: getMobileId(),
+  relayUrl: localStorage.getItem('cm_relay') || '',
+  sender: localStorage.getItem('cm_sender') || '手机用户',
+  ws: null,
+  connected: false,
+  // [{deviceId, name, relayUrl, pairedAt}]
+  pinnedHosts: JSON.parse(localStorage.getItem('cm_pinned') || '[]'),
+  discovered: [],
+  currentRoom: null,
+  // 待处理（扫码/点击教室）
+  _pendingDeviceId: null,
+  _pendingRoomName: '教室',
+  _needPairForDeviceId: null,
+  _lastJoinId: null,
+  _tempPairCode: '',
+  _failCount: 0
+}
+
+const quickMessages = ['老师好！', '准备好了', '请抽我！', '我有问题', '再来一次', '真棒👏', '加油💪']
+
+// ============ WebSocket ============
+function connect() {
+  try {
+    if (!state.relayUrl) {
+      try {
+        const origin = new URL(location.href).origin
+        state.relayUrl = origin.replace(/^http/, 'ws')
+        localStorage.setItem('cm_relay', state.relayUrl)
+      } catch (e) {
+        updateRelayStatus('❌ 无法确定服务器地址，请在设置里填写', '#ff4757')
+        return
+      }
+    }
+
+    // 已存在且开着就不重复连
+    if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return
+
+    const wsUrl = state.relayUrl.replace(/\/+$/, '').replace(/\/relay$/, '') + '/relay'
+    updateRelayStatus('🔄 正在连接...', '#ffcc00')
+
+    state.ws = new WebSocket(wsUrl)
+
+    state.ws.onopen = () => {
+      state.connected = true
+      state._failCount = 0
+      updateRelayStatus('✅ 已连接', '#00ff88')
+      wsSend({ type: 'list' })
+      state._listTimer = setInterval(() => {
+        if (state.connected) wsSend({ type: 'list' })
+      }, 5000)
+
+      // 连接建立后有待进入的教室
+      if (state._pendingDeviceId) {
+        const id = state._pendingDeviceId
+        state._pendingDeviceId = null
+        const pin = state.pinnedHosts.find(p => p.deviceId === id)
+        if (pin) {
+          // 已配对：自带 mobileId，无配对码直连，服务器凭授权名单放行
+          sendJoin(id, '', '')
+        } else {
+          // 未配对：等 list 回来后弹配对码框
+          state._needPairForDeviceId = id
+        }
+      }
+    }
+
+    state.ws.onmessage = (raw) => {
+      let msg
+      try { msg = JSON.parse(raw.data) } catch { return }
+      onRelayMessage(msg)
+    }
+
+    state.ws.onclose = () => {
+      state.connected = false
+      clearInterval(state._listTimer)
+      state._failCount++
+      if (state._failCount <= 2) {
+        updateRelayStatus('🔌 连接断开，重连中...', '#ffcc00')
+      } else {
+        // Render 免费版冷启动约需 30-60 秒
+        updateRelayStatus('☁️ 云端服务启动中，最长等待约 1 分钟...', '#ffcc00')
+      }
+      setTimeout(connect, 3000)
+    }
+
+    state.ws.onerror = () => {
+      updateRelayStatus('☁️ 连接中（跨网络首次较慢）...', '#ffcc00')
+    }
+  } catch (e) {
+    updateRelayStatus('❌ 异常: ' + e.message, '#ff4757')
+  }
+}
+
+function updateRelayStatus(text, color) {
+  const el = document.getElementById('relayStatus')
+  if (el) { el.textContent = text; el.style.color = color || 'var(--text-dim)' }
+}
+
+function onRelayMessage(msg) {
+  switch (msg.type) {
+    case 'list':
+      state.discovered = msg.rooms || []
+      renderRooms()
+      // 扫码进入的新教室 → 自动弹配对码框
+      if (state._needPairForDeviceId) {
+        const room = state.discovered.find(r => r.deviceId === state._needPairForDeviceId)
+        if (room) {
+          state._pendingDeviceId = room.deviceId
+          state._pendingRoomName = room.name
+          state._needPairForDeviceId = null
+          openPairModal(room.name)
+        }
+      }
+      break
+
+    case 'joinOk': {
+      const room = msg.room
+      // 落盘"我的教室"（含当前服务器地址，以后跨网络直连）
+      if (!state.pinnedHosts.find(p => p.deviceId === room.hostDeviceId)) {
+        state.pinnedHosts.push({
+          deviceId: room.hostDeviceId,
+          name: room.name,
+          relayUrl: state.relayUrl,
+          pairedAt: Date.now()
+        })
+        localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
+      }
+      state.currentRoom = { deviceId: room.hostDeviceId, name: room.name }
+      renderRooms()
+      goSend()
+      break
+    }
+
+    case 'verifyOk': {
+      // 配对码校验通过（paired=false 首次）→ 带码 join，服务器登记授权并通知 PC
+      if (state._pendingDeviceId) {
+        sendJoin(state._pendingDeviceId, state._tempPairCode, '')
+      }
+      break
+    }
+
+    case 'revoked': {
+      // 老师在电脑端移除了本手机
+      state.pinnedHosts = state.pinnedHosts.filter(p => p.deviceId !== msg.hostDeviceId)
+      localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
+      renderRooms()
+      showToast('老师已取消本手机的配对，需要重新扫码')
+      break
+    }
+
+    case 'error':
+      if (msg.needPair) {
+        // 免码失败（被移除/电脑重装过）→ 转为配对码流程
+        const id = state._lastJoinId
+        if (id) {
+          const room = state.discovered.find(r => r.deviceId === id)
+          state._pendingDeviceId = id
+          state._pendingRoomName = room?.name || '教室'
+          state._needPairForDeviceId = null
+          openPairModal(state._pendingRoomName)
+        } else {
+          showToast('需要配对码，请扫码重新配对', true)
+        }
+      } else {
+        showToast(msg.msg || '操作失败', true)
+      }
+      break
+  }
+}
+
+function wsSend(obj) {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+    state.ws.send(JSON.stringify(obj))
+  } else {
+    showToast('连接中，请稍候再试', true)
+  }
+}
+
+/** 统一的 join 发送（记录最后尝试的教室，供 needPair 回退用） */
+function sendJoin(deviceId, pairCode, content) {
+  state._lastJoinId = deviceId
+  wsSend({
+    type: 'join',
+    hostDeviceId: deviceId,
+    mobileId: state.mobileId,
+    sender: state.sender,
+    pairCode: pairCode || '',
+    content: content || ''
+  })
+}
+
+// ============ 渲染 ============
+function renderRooms() {
+  const all = [
+    ...state.pinnedHosts.map(p => {
+      const live = state.discovered.find(d => d.deviceId === p.deviceId)
+      return { ...p, online: !!live, isPinned: true }
+    }),
+    ...state.discovered
+      .filter(d => !state.pinnedHosts.find(p => p.deviceId === d.deviceId))
+      .map(d => ({ ...d, isPinned: false }))
+  ]
+
+  // 我的教室
+  const pinnedEl = document.getElementById('pinnedRooms')
+  const pinned = all.filter(r => r.isPinned)
+  if (pinned.length === 0) {
+    pinnedEl.innerHTML = `<div class="empty">
+      <div class="empty-icon">📋</div>
+      还没有配对的教室
+      <div class="empty-tip">在教室电脑上点「连接云端」<br>用手机扫屏幕上的二维码，输入一次配对码即可<br>以后有网就能一键直连（WiFi/流量都行）</div>
+    </div>`
+  } else {
+    pinnedEl.innerHTML = pinned.map(r => `
+      <div class="room-card ${r.online ? '' : 'offline'}" onclick="tryJoinRoom('${r.deviceId}')">
+        <div class="room-avatar">🏫</div>
+        <div class="room-info">
+          <div class="room-name">${r.name}</div>
+          <div class="room-meta">
+            <span class="online-dot ${r.online ? '' : 'offline-dot'}"></span>
+            ${r.online ? '在线 · 点击直接进入' : '电脑端离线'}
+            <span class="pinned-tag">已配对</span>
+          </div>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  // 在线但未配对
+  const discEl = document.getElementById('discoveredRooms')
+  const disc = all.filter(r => !r.isPinned && r.online)
+  if (disc.length === 0) {
+    discEl.innerHTML = `<div class="empty"><div class="empty-icon" style="font-size:36px">🔍</div>没发现在线教室</div>`
+  } else {
+    discEl.innerHTML = disc.map(r => `
+      <div class="room-card" onclick="tryJoinRoom('${r.deviceId}')">
+        <div class="room-avatar">🏫</div>
+        <div class="room-info">
+          <div class="room-name">${r.name}</div>
+          <div class="room-meta">
+            <span class="online-dot"></span> 在线
+            <span class="connect-tag">需配对码</span>
+          </div>
+        </div>
+      </div>
+    `).join('')
+  }
+}
+
+// ============ 点教室卡片 ============
+function tryJoinRoom(deviceId) {
+  const pin = state.pinnedHosts.find(p => p.deviceId === deviceId)
+  const live = state.discovered.find(d => d.deviceId === deviceId)
+
+  if (pin) {
+    if (!live) { showToast('电脑端不在线，到教室打开软件后再试', true); return }
+    // 该教室在另一个服务器上 → 切换服务器后自动加入
+    if (pin.relayUrl && pin.relayUrl !== state.relayUrl) {
+      state.relayUrl = pin.relayUrl
+      localStorage.setItem('cm_relay', pin.relayUrl)
+      state._pendingDeviceId = deviceId
+      if (state.ws) { try { state.ws.close() } catch {} }
+      connect()
+      showToast('正在进入「' + pin.name + '」...')
+      return
+    }
+    state._pendingDeviceId = deviceId
+    if (state.connected) {
+      sendJoin(deviceId, '', '')
+      showToast('正在进入「' + pin.name + '」...')
+    } else {
+      connect()
+    }
+    return
+  }
+
+  // 未配对在线教室 → 输入配对码
+  if (!live) { showToast('教室离线了', true); return }
+  state._pendingDeviceId = deviceId
+  state._pendingRoomName = live.name
+  openPairModal(live.name)
+}
+
+function openPairModal(roomName) {
+  document.getElementById('pairTitle').textContent = '🔐 配对：' + (roomName || '教室')
+  document.getElementById('pairCodeInput').value = ''
+  document.getElementById('pairModal').classList.add('show')
+  setTimeout(() => document.getElementById('pairCodeInput').focus(), 300)
+}
+function closePairModal() {
+  document.getElementById('pairModal').classList.remove('show')
+  state._pendingDeviceId = null
+  state._tempPairCode = ''
+}
+
+function confirmPair() {
+  const code = document.getElementById('pairCodeInput').value.trim().toUpperCase()
+  if (!code || code.length < 4) { showToast('请输入 6 位配对码', true); return }
+  if (!state._pendingDeviceId) { closePairModal(); return }
+
+  state._tempPairCode = code
+  // verify 校验配对码 → verifyOk 后带码 join 完成授权
+  wsSend({ type: 'verify', hostDeviceId: state._pendingDeviceId, mobileId: state.mobileId, pairCode: code })
+}
+
+// ============ 扫码（App 内嵌 Capacitor 时启用） ============
+function startScan() {
+  if (window.Capacitor?.Plugins?.BarcodeScanner) {
+    window.Capacitor.Plugins.BarcodeScanner.scan({ formats: ['QR_CODE'] })
+      .then(result => { if (result.hasContents) handleQrContent(result.content) })
+      .catch(err => showToast('扫码失败: ' + err.message, true))
+  } else {
+    showToast('请直接用手机相机/微信扫电脑屏幕上的二维码', true)
+  }
+}
+
+// 二维码内容：http(s)://host/m?r=ws(s)://relay&d=deviceId&n=教室名
+function handleQrContent(content) {
+  try {
+    if (content.includes('?') || content.startsWith('http')) {
+      const u = new URL(content)
+      const sp = new URLSearchParams(u.search)
+      const r = sp.get('r'), d = sp.get('d'), n = sp.get('n')
+      if (d) { state._pendingDeviceId = d; state._pendingRoomName = n || '教室' }
+      if (r && r !== state.relayUrl) {
+        state.relayUrl = r
+        localStorage.setItem('cm_relay', r)
+        if (state.ws) { try { state.ws.close() } catch {} }
+        connect()
+      } else if (state.connected && d) {
+        const pin = state.pinnedHosts.find(p => p.deviceId === d)
+        sendJoin(d, pin ? '' : '', '')
+      }
+      return
+    }
+    const data = JSON.parse(content)
+    if (data.r && data.r !== state.relayUrl) {
+      state.relayUrl = data.r
+      localStorage.setItem('cm_relay', data.r)
+      connect()
+    }
+    if (data.d) { state._pendingDeviceId = data.d; state._pendingRoomName = data.n || '教室' }
+  } catch {
+    if (/^[A-Z0-9]{4,}$/i.test(content.trim())) {
+      showToast('请先点教室卡片，再输入配对码', true)
+    }
+  }
+}
+
+// ============ 发送消息 ============
+function goSend() {
+  if (!state.currentRoom) return
+  document.getElementById('page-list').style.display = 'none'
+  document.getElementById('page-settings').style.display = 'none'
+  document.getElementById('page-send').style.display = 'block'
+  document.getElementById('targetName').textContent =
+    state.currentRoom.name + ' · ' + (state.currentRoom.deviceId || '').slice(0, 8)
+  document.getElementById('quickTags').innerHTML = quickMessages
+    .map(m => `<div class="quick-tag" onclick="document.getElementById('msgInput').value='${m}'">${m}</div>`).join('')
+}
+
+function goBack() {
+  document.getElementById('page-send').style.display = 'none'
+  document.getElementById('page-list').style.display = 'block'
+  state.currentRoom = null
+  switchTab('list')
+}
+
+function sendMessage() {
+  if (!state.currentRoom) return
+  const input = document.getElementById('msgInput')
+  const text = input.value.trim()
+  if (!text) { showToast('消息不能为空', true); return }
+
+  const btn = document.getElementById('sendBtn')
+  btn.classList.add('sending')
+  btn.textContent = '发送中...'
+
+  sendJoin(state.currentRoom.deviceId, '', text)
+
+  showToast('已发送 ✅')
+  input.value = ''
+  btn.classList.remove('sending')
+  btn.textContent = '发送'
+}
+
+// ============ 设置 ============
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab))
+  if (tab === 'list') {
+    document.getElementById('page-list').style.display = 'block'
+    document.getElementById('page-settings').style.display = 'none'
+    if (state.currentRoom) goBack()
+  } else if (tab === 'settings') {
+    document.getElementById('page-settings').style.display = 'block'
+    document.getElementById('page-list').style.display = 'none'
+    document.getElementById('relayUrlInput').value = state.relayUrl
+    document.getElementById('senderInput').value = state.sender
+  }
+}
+
+function saveSettings() {
+  const url = document.getElementById('relayUrlInput').value.trim()
+  state.sender = document.getElementById('senderInput').value.trim() || '手机用户'
+  localStorage.setItem('cm_sender', state.sender)
+  if (url && url !== state.relayUrl) {
+    state.relayUrl = url
+    localStorage.setItem('cm_relay', url)
+    if (state.ws) { try { state.ws.close() } catch {} }
+    setTimeout(connect, 300)
+  }
+  showToast('已保存 ✅')
+  switchTab('list')
+}
+
+function clearPinned() {
+  if (!confirm('确定与所有教室解除配对吗？\n解除后需要重新扫码并输入配对码。')) return
+  // 通知在线的电脑端解除授权
+  for (const p of state.pinnedHosts) {
+    if (p.relayUrl === state.relayUrl) {
+      wsSend({ type: 'unpair', hostDeviceId: p.deviceId, mobileId: state.mobileId })
+    }
+  }
+  state.pinnedHosts = []
+  localStorage.removeItem('cm_pinned')
+  renderRooms()
+  showToast('已清除配对')
+}
+
+// ============ Toast ============
+let toastTimer
+function showToast(msg, isError) {
+  const t = document.getElementById('toast')
+  t.textContent = msg
+  t.className = 'toast show' + (isError ? ' error' : '')
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600)
+}
+
+// ============ 启动 ============
+;(function init() {
+  // 1. URL 参数（扫码进入）：r=服务器 d=教室 n=名称
+  try {
+    const sp = new URLSearchParams(location.search)
+    const r = sp.get('r'), d = sp.get('d'), n = sp.get('n')
+    if (r) { state.relayUrl = r; localStorage.setItem('cm_relay', r) }
+    if (d) { state._pendingDeviceId = d; state._pendingRoomName = n || '教室' }
+  } catch (e) { /* ignore */ }
+
+  // 2. 空地址 → 用当前页面 origin 推断
+  if (!state.relayUrl) {
+    try {
+      state.relayUrl = new URL(location.href).origin.replace(/^http/, 'ws')
+      localStorage.setItem('cm_relay', state.relayUrl)
+    } catch {}
+  }
+
+  connect()
+  renderRooms()
+})()
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "appId": "com.classmanager.mobile",
+  "appName": "班级管理大师",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "BarcodeScanner": {
+      "permission": "camera"
+    }
+  }
+}

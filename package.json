@@ -1,0 +1,77 @@
+{
+  "name": "class-manager",
+  "version": "1.0.0",
+  "description": "班级管理大师 - PC 原生软件",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
+    "build:renderer": "vite build",
+    "sync:relay": "node scripts/sync-relay-assets.js",
+    "build": "node scripts/sync-relay-assets.js && vite build && electron-builder",
+    "build:win": "node scripts/sync-relay-assets.js && vite build && electron-builder --win --x64",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "adm-zip": "^0.6.1",
+    "qrcode": "^1.5.4",
+    "sql.js": "^1.11.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.1.4",
+    "concurrently": "^9.0.1",
+    "cross-env": "^7.0.3",
+    "electron": "^32.1.0",
+    "electron-builder": "^25.0.5",
+    "vite": "^5.4.8",
+    "vue": "^3.5.10",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.classmanager.app",
+    "productName": "班级管理大师",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "mobile/**/*",
+      "dist/**/*",
+      "package.json",
+      "node_modules/adm-zip/**/*",
+      "node_modules/qrcode/**/*",
+      "node_modules/sql.js/**/*",
+      "node_modules/ws/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/icon.png",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "班级管理大师-便携版-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "班级管理大师",
+      "artifactName": "班级管理大师-安装版-${version}.${ext}"
+    }
+  }
+}

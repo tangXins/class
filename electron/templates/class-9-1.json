@@ -1,0 +1,140 @@
+{
+  "name": "九年级一班",
+  "description": "九年级1班预设（依据期末检测2成绩）：语数英物化，29名学生，抽背权重按总分阶梯设置（700+权重5/600-699权重4/500-599权重3/400-499权重2/400以下权重1，高分抽中概率更高）",
+  "grades": [
+    {
+      "name": "九年级",
+      "sortOrder": 1,
+      "subjects": [
+        "语文",
+        "数学",
+        "英语",
+        "物理",
+        "化学"
+      ],
+      "classes": [
+        {
+          "name": "1班",
+          "students": [
+            {
+              "name": "王秋云",
+              "weight": 5
+            },
+            {
+              "name": "姜怡佳",
+              "weight": 5
+            },
+            {
+              "name": "李玺乐",
+              "weight": 5
+            },
+            {
+              "name": "陈怡然",
+              "weight": 5
+            },
+            {
+              "name": "蒲美伊",
+              "weight": 5
+            },
+            {
+              "name": "王冬梅",
+              "weight": 4
+            },
+            {
+              "name": "蒲强",
+              "weight": 4
+            },
+            {
+              "name": "王熙迪",
+              "weight": 3
+            },
+            {
+              "name": "梁诗倩",
+              "weight": 3
+            },
+            {
+              "name": "蒲志玲",
+              "weight": 3
+            },
+            {
+              "name": "程梦",
+              "weight": 3
+            },
+            {
+              "name": "蒲梦林",
+              "weight": 3
+            },
+            {
+              "name": "梁朝源",
+              "weight": 2
+            },
+            {
+              "name": "蒲佳慧",
+              "weight": 2
+            },
+            {
+              "name": "蒲紫然",
+              "weight": 2
+            },
+            {
+              "name": "吴文钰",
+              "weight": 2
+            },
+            {
+              "name": "徐志程",
+              "weight": 2
+            },
+            {
+              "name": "蒲俊杰",
+              "weight": 2
+            },
+            {
+              "name": "王子涵",
+              "weight": 2
+            },
+            {
+              "name": "陈剑飞",
+              "weight": 1
+            },
+            {
+              "name": "蒲鸿源",
+              "weight": 1
+            },
+            {
+              "name": "王楠",
+              "weight": 1
+            },
+            {
+              "name": "蒲思源",
+              "weight": 1
+            },
+            {
+              "name": "刘燚",
+              "weight": 1
+            },
+            {
+              "name": "蒲豪",
+              "weight": 1
+            },
+            {
+              "name": "蒲布",
+              "weight": 1
+            },
+            {
+              "name": "蒲一鸣",
+              "weight": 1
+            },
+            {
+              "name": "刘民臣",
+              "weight": 1
+            },
+            {
+              "name": "蒲子豪",
+              "weight": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "班级管理大师",
+  "version": "1.0.0",
+  "description": "手机端 - 发送消息到教室大屏",
+  "main": "index.html",
+  "scripts": {
+    "init": "npx cap init \"班级管理大师\" com.classmanager.mobile --web-dir .",
+    "add-android": "npx cap add android",
+    "copy": "npx cap copy android",
+    "open-android": "npx cap open android",
+    "sync": "npx cap sync",
+    "build-apk": "echo 请用 DCloud 云打包或 Android Studio: npx cap open android && Build APK"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/barcode-scanner": "^1.0.2",
+    "@capacitor/cli": "^6.0.0"
+  }
+}

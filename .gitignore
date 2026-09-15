@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+release/
+release-fix*/
+
+# IDE / 系统
+.trae/
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+
+# 数据库文件
+*.sqlite
+*.db
+
+# 临时文件
+*.tmp
