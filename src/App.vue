@@ -68,10 +68,6 @@
             </transition>
             <div class="net-qr-hint" v-if="relayConnected && !pairSuccess">🔍 点击放大 · 查看配对码</div>
           </div>
-          <!-- 配对码显示（主面板） -->
-          <div v-if="relayConnected" class="net-paircode" :class="{ flash: pairCodeFlash }">
-            <span v-for="(d, i) in pairCode.split('')" :key="i" class="net-pair-digit" :class="{ flash: pairCodeFlash }" :style="{ '--delay': (i * 120) + 'ms' }">{{ d }}</span>
-          </div>
         </div>
 
         <!-- 网络模式：局域网（同 WiFi） / 公网（任意网络） -->
@@ -454,9 +450,7 @@ const qrZoomed = ref(false)
 // 配对成功动画状态
 const pairSuccess = ref(false)
 const pairSuccessName = ref('')
-const pairCodeFlash = ref(false)
 let pairSuccessTimer = null
-let pairRefreshTimer = null
 
 function effectiveRelayUrl() {
   return netMode.value === 'public' && publicRelayUrl.value.trim()
@@ -792,19 +786,15 @@ onMounted(async () => {
   })
   window.api.relay.onPairedMobile((mobile) => {
     refreshPaired()
-    // 配对成功视觉反馈
+    // 配对成功视觉反馈：QR 上覆盖绿色成功层
     pairSuccessName.value = mobile?.sender || '新手机'
     pairSuccess.value = true
-    pairCodeFlash.value = true
-    // 配对码闪绿 1s 后停止
-    setTimeout(() => { pairCodeFlash.value = false }, 1000)
-    // 6 秒内再次配对重置计时器
+    // 6 秒内再次配对则重置计时器
     clearTimeout(pairSuccessTimer)
-    clearTimeout(pairRefreshTimer)
     pairSuccessTimer = setTimeout(() => {
       pairSuccess.value = false
-      // 自动刷新新配对码 + 新二维码
-      refreshCode()
+      // 自动刷新新配对码 + 新二维码（配对码仅在放大二维码时可见）
+      window.api.relay.refreshCode()
     }, 6000)
   })
   window.api.relay.onUnpairedMobile((mobileId) => {
@@ -1073,7 +1063,7 @@ onMounted(async () => {
 
 /* 侧栏 QR 单独一行，居中 */
 .net-qr-row {
-  display: flex; align-items: center; justify-content: center; gap: 28px; padding: 4px 0 10px;
+  display: flex; justify-content: center; padding: 4px 0 10px;
 }
 
 /* 配对成功 overlay（覆盖 QR canvas） */
@@ -1107,30 +1097,6 @@ onMounted(async () => {
 @keyframes pairOverlayOut {
   0% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.85); }
-}
-
-/* 主面板配对码显示 */
-.net-paircode {
-  display: flex; gap: 6px; padding: 6px 14px;
-  background: rgba(0,0,0,0.4); border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.net-pair-digit {
-  width: 22px; height: 30px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 18px; font-weight: bold; font-family: Consolas, monospace;
-  color: #fff;
-  background: rgba(255,255,255,0.04);
-  border-radius: 5px;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
-}
-.net-pair-digit.flash {
-  animation: pairFlash 0.9s ease-out;
-}
-@keyframes pairFlash {
-  0% { background: rgba(0,255,130,0.6); color: #0a2d1a; transform: scale(1.15); box-shadow: 0 0 12px rgba(0,255,130,0.5); }
-  40% { background: rgba(0,255,130,0.3); }
-  100% { background: rgba(255,255,255,0.04); color: #fff; transform: scale(1); box-shadow: none; }
 }
 .net-qr-wrap {
   width: 120px; height: 120px; flex-shrink: 0;
