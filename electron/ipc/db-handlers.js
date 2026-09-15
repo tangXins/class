@@ -48,13 +48,16 @@ function register(ipcMain, db) {
     const dir = path.join(__dirname, '..', 'templates')
     if (!fs.existsSync(dir)) return []
     return fs.readdirSync(dir)
-      .filter(f => f.endsWith('.json'))
+      .filter(f => f.endsWith('.json') && f !== 'catalog.json')
       .map(f => {
         try {
           const tpl = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf-8'))
+          // 没有 name 字段的不是有效模板（如教材目录数据），直接跳过
+          if (!tpl.name || !Array.isArray(tpl.grades)) return null
           return { file: f, name: tpl.name, description: tpl.description }
-        } catch { return { file: f, name: f, description: '' } }
+        } catch { return null }
       })
+      .filter(Boolean)
   })
 
   // ============ 教材目录（纯 JSON，与 SQLite 解耦）============
