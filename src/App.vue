@@ -923,7 +923,8 @@ onMounted(async () => {
     const cfg = await window.api.config.get()
     className.value = cfg.className || '未命名教室'
     netMode.value = cfg.relayMode === 'public' ? 'public' : 'lan'
-    publicRelayUrl.value = cfg.publicRelayUrl || ''
+    // 公网模式下若地址为空，自动填入默认公网中继，避免用户卡死
+    publicRelayUrl.value = cfg.publicRelayUrl || (netMode.value === 'public' ? 'wss://classmanager-relay.onrender.com' : '')
     syncRelayUrl()
     deviceId.value = cfg.deviceId || ''
     // 应用外观主题

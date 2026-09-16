@@ -9,6 +9,8 @@
     "sync:relay": "node scripts/sync-relay-assets.js",
     "build": "node scripts/sync-relay-assets.js && vite build && electron-builder && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-green-zip.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-portable.ps1",
     "build:win": "node scripts/sync-relay-assets.js && vite build && electron-builder --win --x64 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-green-zip.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-portable.ps1",
+    "build:android": "npx cap sync android && cd android && gradlew assembleDebug && cd .. && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-apk-to-release.ps1",
+    "copy:apk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-apk-to-release.ps1",
     "start": "electron ."
   },
   "dependencies": {

@@ -141,6 +141,10 @@
   .scan-btn:active { background: rgba(0,212,255,.15); }
   .gate-note { margin-top: 22px; font-size: 11px; line-height: 1.8; color: var(--text-dim);
     border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
+  .gate-diagnostic { margin-top: 10px; font-size: 11px; color: var(--text-dim);
+    text-align: center; opacity: 0.7; word-break: break-all; }
+  .gate-diagnostic .diag-sep { margin: 0 6px; opacity: 0.5; }
+  #discoveredWrap { margin-top: 14px; }
 
   /* ============ 顶部通知横幅（不打断、不全屏） ============ */
   .banner {
@@ -291,9 +295,16 @@
       <div id="pinnedRooms"></div>
     </div>
 
+    <!-- 发现的在线教室（含未配对的，临时模式也能看到并加入） -->
+    <div id="discoveredWrap">
+      <div style="font-size:12px;color:var(--text-dim);margin:0 2px 8px">🌐 附近在线教室（点击进入）</div>
+      <div id="discoveredRooms"></div>
+    </div>
+
     <button class="scan-btn" onclick="startScan()">📷 扫描教室二维码连接</button>
     <div class="gate-status" id="relayStatus">🔄 初始化中...</div>
 
+    <div class="gate-diagnostic" id="gateDiag"></div>
     <div class="gate-note" id="gateNote"></div>
   </div>
 
@@ -415,6 +426,7 @@
               <input class="ipt" id="relayUrlInput" placeholder="wss://your-relay.example.com">
             </div>
             <button class="btn btn-ghost btn-block btn-sm" onclick="saveRelayUrl()">保存并重新连接</button>
+            <button class="btn btn-ghost btn-block btn-sm" style="margin-top:6px" onclick="resetRelayUrl()">↺ 恢复默认公网中继</button>
           </div>
         </details>
       </div>
@@ -557,15 +569,16 @@ function connect() {
       state._failCount = 0
       setRelayStatus('✅ 已连接', '#00e08a')
       updateBarChip()
-      wsSend({ type: 'list' })
-      state._listTimer = setInterval(() => state.connected && wsSend({ type: 'list' }), 5000)
       if (isNative) syncMainStandby()
+      // 先处理扫码带来的待加入设备，再发 list（list 回调里会用到 _needPairForDeviceId）
       if (state._pendingDeviceId) {
         const id = state._pendingDeviceId
         state._pendingDeviceId = null
         if (state.pinnedHosts.find(p => p.deviceId === id)) sendJoin(id, '', '')
         else state._needPairForDeviceId = id
       }
+      wsSend({ type: 'list' })
+      state._listTimer = setInterval(() => state.connected && wsSend({ type: 'list' }), 5000)
     }
     state.ws.onmessage = (raw) => {
       let msg
@@ -699,11 +712,12 @@ function onRelayMessage(msg) {
     case 'error':
       if (msg.needPair) {
         const id = state._lastJoinId
-        if (id && isNative) {
+        if (id) {
           state._pendingDeviceId = id
           openPairModal(state.discovered.find(r => r.deviceId === id)?.name || '教室')
+          if (msg.msg) showToast(msg.msg, true)
         } else {
-          showToast('需要配对码，请重新扫码', true)
+          showToast(msg.msg || '需要配对码', true)
         }
       } else {
         showToast(msg.msg || '操作失败', true)
@@ -794,25 +808,63 @@ function renderPinned() {
   const el = document.getElementById('pinnedRooms')
   wrap.style.display = isNative ? 'block' : 'none'
   document.getElementById('gateNote').innerHTML = isNative
-    ? '🔒 只能看到你配对过的教室。<br>换手机 / 重装 App 后需要重新扫码配对。'
-    : '🌐 你正在使用<b>网页临时模式</b>：扫码并输入配对码即可进入，<b>不会记住本设备</b>，关闭网页后需重新扫码。<br>完整功能（班级管理 / 教材目录 / 后台消息）请安装 Android App。'
+    ? '🔒 已配对教室可直接进入。<br>未配对的教室在下方「附近在线教室」中，点击后输入配对码。'
+    : '🌐 你正在使用<b>网页临时模式</b>：选择下方教室并输入配对码即可进入，<b>不会记住本设备</b>，关闭网页后需重新扫码。<br>完整功能（班级管理 / 教材目录 / 后台消息）请安装 Android App。'
 
-  if (!isNative) { el.innerHTML = ''; return }
-  if (!state.pinnedHosts.length) {
+  if (!isNative) { el.innerHTML = '' }
+  else if (!state.pinnedHosts.length) {
     el.innerHTML = `<div class="empty"><span class="ico">📋</span>还没有配对的教室
-      <div class="tip">在教室电脑开启「手机连接」<br>扫描屏幕二维码并输入一次配对码即可</div></div>`
-    return
+      <div class="tip">在下方「附近在线教室」中点击教室<br>输入一次配对码即可永久配对</div></div>`
+  } else {
+    el.innerHTML = state.pinnedHosts.map(p => {
+      const live = state.discovered.find(d => d.deviceId === p.deviceId)
+      return `<div class="room-card ${live ? '' : 'offline'}" onclick="tryJoinRoom('${p.deviceId}')">
+        <div class="room-avatar">🏫</div>
+        <div class="room-info">
+          <div class="room-name">${esc(p.name)}</div>
+          <div class="room-meta"><span class="online-dot ${live ? '' : 'off'}"></span>${live ? '在线 · 点击进入' : '电脑端离线'}</div>
+        </div>
+      </div>`
+    }).join('')
   }
-  el.innerHTML = state.pinnedHosts.map(p => {
-    const live = state.discovered.find(d => d.deviceId === p.deviceId)
-    return `<div class="room-card ${live ? '' : 'offline'}" onclick="tryJoinRoom('${p.deviceId}')">
-      <div class="room-avatar">🏫</div>
-      <div class="room-info">
-        <div class="room-name">${esc(p.name)}</div>
-        <div class="room-meta"><span class="online-dot ${live ? '' : 'off'}"></span>${live ? '在线 · 点击进入' : '电脑端离线'}</div>
-      </div>
-    </div>`
-  }).join('')
+
+  // 发现的在线教室（排除已在"我的教室"中显示的）
+  const dWrap = document.getElementById('discoveredWrap')
+  const dEl = document.getElementById('discoveredRooms')
+  const discovered = state.discovered.filter(d =>
+    !state.pinnedHosts.find(p => p.deviceId === d.deviceId)
+  )
+  if (!discovered.length) {
+    dWrap.style.display = 'none'
+  } else {
+    dWrap.style.display = 'block'
+    dEl.innerHTML = discovered.map(r => `
+      <div class="room-card" onclick="tryJoinDiscovered('${r.deviceId}')">
+        <div class="room-avatar">🏫</div>
+        <div class="room-info">
+          <div class="room-name">${esc(r.name)}</div>
+          <div class="room-meta"><span class="online-dot"></span>在线 · 需配对码</div>
+        </div>
+      </div>`).join('')
+  }
+
+  // 诊断信息：中继地址 + 在线教室数
+  const diag = document.getElementById('gateDiag')
+  if (diag) {
+    const relayShort = state.relayUrl.replace(/^wss?:\/\//, '').replace(/\/relay$/, '')
+    diag.innerHTML = `<span title="${esc(state.relayUrl)}">中继：${esc(relayShort)}</span>
+      <span class="diag-sep">·</span>
+      <span>在线教室 ${state.discovered.length}</span>`
+  }
+}
+
+// 点击"附近在线教室"中未配对的教室 → 直接弹配对码输入框
+function tryJoinDiscovered(deviceId) {
+  if (!state.connected) { showToast('连接中，请稍候再试', true); return }
+  const room = state.discovered.find(d => d.deviceId === deviceId)
+  if (!room) { showToast('教室已离线', true); return }
+  state._pendingDeviceId = deviceId
+  openPairModal(room.name)
 }
 
 function tryJoinRoom(deviceId) {
@@ -849,20 +901,37 @@ function closePairModal() {
 function confirmPair() {
   const code = document.getElementById('pairCodeInput').value.trim().toUpperCase()
   if (code.length < 4) { showToast('请输入 6 位配对码', true); return }
-  if (!state._pendingDeviceId) { closePairModal(); return }
+  const deviceId = state._pendingDeviceId
+  if (!deviceId) { closePairModal(); return }
   state._tempPairCode = code
-  wsSend({ type: 'verify', hostDeviceId: state._pendingDeviceId, mobileId: state.mobileId, pairCode: code })
+  // 直接发 join（带配对码），relay 的 join 处理会校验配对码并授权
+  sendJoin(deviceId, code, '')
 }
 
 // ---------- 扫码 ----------
-function startScan() {
+async function startScan() {
   const scanner = window.Capacitor?.Plugins?.CapacitorBarcodeScanner
-  if (scanner) {
-    scanner.scanBarcode({ hint: 17 })
-      .then(result => { if (result && result.ScanResult) handleQrContent(result.ScanResult) })
-      .catch(() => {})
-  } else {
+  if (!scanner) {
     showToast('请用手机相机/微信扫电脑屏幕上的二维码', true)
+    return
+  }
+  try {
+    showToast('正在启动相机…')
+    const result = await scanner.scanBarcode({ hint: 17 })
+    if (result && result.ScanResult) {
+      handleQrContent(result.ScanResult)
+    } else {
+      showToast('未识别到二维码', true)
+    }
+  } catch (e) {
+    const msg = (e && e.message) ? e.message : String(e || '')
+    if (msg.includes('cancel') || msg.includes('Cancel')) {
+      // 用户主动取消，不提示
+    } else if (msg.includes('permission') || msg.includes('Permission') || msg.includes('camera')) {
+      showToast('请在系统设置中授予相机权限后重试', true)
+    } else {
+      showToast('扫码失败：' + (msg || '未知错误'), true)
+    }
   }
 }
 function handleQrContent(content) {
@@ -1286,6 +1355,14 @@ function saveRelayUrl() {
   try { state.ws.close() } catch {}
   setTimeout(connect, 300)
   showToast('正在重新连接…')
+}
+function resetRelayUrl() {
+  state.relayUrl = DEFAULT_RELAY
+  localStorage.setItem('cm_relay', DEFAULT_RELAY)
+  document.getElementById('relayUrlInput').value = DEFAULT_RELAY
+  try { state.ws.close() } catch {}
+  setTimeout(connect, 300)
+  showToast('已恢复默认中继，重新连接中…')
 }
 function unpairCurrent() {
   const room = state.currentRoom
