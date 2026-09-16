@@ -1,0 +1,8 @@
+{
+  "appId": "com.classmanager.app",
+  "appName": "班级管理大师",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  }
+}

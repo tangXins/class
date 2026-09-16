@@ -26,3 +26,8 @@ preload.js
 
 # 临时文件
 *.tmp
+
+# 项目根的孤儿/同步副本（不应提交；package.json 入口在 electron/main.js，手机页源在 mobile/index.html）
+/index.html
+/main.js
+/www/

@@ -108,7 +108,7 @@
                 {{ s.name.charAt(0) }}
               </span>
               <span class="stu-info">
-                {{ s.name }}
+                <span class="stu-name">{{ s.name }}</span>
                 <span v-if="s.gender" class="gender-badge" :class="s.gender === '男' ? 'male' : 'female'">{{ genderSymbol(s.gender) }}</span>
               </span>
             </span>
@@ -175,6 +175,7 @@
               <thead>
                 <tr>
                   <th style="width:56px">权重</th>
+                  <th style="width:130px">所属单元</th>
                   <th>标题</th>
                   <th>内容</th>
                   <th style="width:120px">操作</th>
@@ -189,8 +190,18 @@
                       <button class="w-btn" @click="changeQuestionWeight(q, 1)">+</button>
                     </div>
                   </td>
-                  <td class="td-title">{{ q.title || '(无标题)' }}</td>
-                  <td class="td-content">{{ q.content || '(无内容)' }}</td>
+                  <td>
+                    <span v-if="q.unit" class="q-unit-pill">{{ q.unit }}</span>
+                    <span v-else class="q-unit-none">未分组</span>
+                  </td>
+                  <td class="td-title">
+                    {{ q.title || '(无标题)' }}
+                    <span v-if="isFromCatalog(q)" class="from-catalog-badge" title="题目本身无原文，内容列显示的是教材目录中的对应原文">📖</span>
+                  </td>
+                  <td class="td-content">
+                    <template v-if="questionContent(q)">{{ questionContent(q) }}</template>
+                    <span v-else class="td-no-content">(无内容)</span>
+                  </td>
                   <td>
                     <button class="icon-btn" @click="openQuestionDialog(q)">✏️</button>
                     <button class="icon-btn danger" @click="deleteQuestion(q.id)">🗑️</button>
@@ -204,12 +215,25 @@
       </template>
     </div>
 
+    <!-- 已有单元候选（输入单元时下拉选择，也可直接输入新名称） -->
+    <datalist id="cm-question-units">
+      <option v-for="u in unitOptions" :key="u" :value="u"></option>
+    </datalist>
+
     <!-- ========== 编辑弹窗 ========== -->
     <div v-if="editorDialog" class="dialog-overlay" @click.self="editorDialog = null">
       <div class="dialog card">
         <div class="dialog-top-bar"></div>
         <h3>{{ editorDialog.title }}</h3>
         <div class="dialog-body">
+          <template v-if="editorDialog.showUnit">
+            <label>所属单元（抽背时按单元分组）</label>
+            <input
+              v-model="editorDialog.unit"
+              list="cm-question-units"
+              placeholder="如：第一单元，可直接输入新单元名"
+            />
+          </template>
           <label>{{ editorDialog.field1Label }}</label>
           <input v-model="editorDialog.field1" :placeholder="editorDialog.field1Label" />
           <template v-if="editorDialog.showField2">
@@ -223,6 +247,10 @@
           <template v-if="editorDialog.showTextarea">
             <label>内容</label>
             <textarea v-model="editorDialog.field3a" rows="4" placeholder="题目内容..."></textarea>
+            <div class="fill-catalog-row">
+              <button type="button" class="fill-catalog-btn" @click="fillFromCatalog">📖 从教材目录填入原文</button>
+              <span class="fill-catalog-hint">教材原文不会自动写入，填入后点保存才生效</span>
+            </div>
           </template>
         </div>
         <div class="dialog-actions">
@@ -248,6 +276,8 @@ const classes = ref([])
 const students = ref([])
 const subjects = ref([])
 const questions = ref([])
+// 教材目录（题目无原文时回退显示 / 编辑时填入）
+const catalog = ref(null)
 
 const selectedGrade = ref(null)
 const selectedClass = ref(null)
@@ -263,6 +293,16 @@ let editingId = null
 const gradeName = computed(() => grades.value.find(g => g.id === selectedGrade.value)?.name || '')
 const className = computed(() => classes.value.find(c => c.id === selectedClass.value)?.name || '')
 const currentSubjectName = computed(() => subjects.value.find(s => s.id === selectedSubject.value)?.name || '')
+// 该学科已使用的单元名（去重，保序），作为输入候选
+const unitOptions = computed(() => {
+  const seen = new Set()
+  const out = []
+  for (const q of questions.value) {
+    const u = (q.unit || '').trim()
+    if (u && !seen.has(u)) { seen.add(u); out.push(u) }
+  }
+  return out
+})
 
 // 分段控件的 fill 位置（根据当前激活 index 计算）
 const segmentFillStyle = computed(() => {
@@ -321,6 +361,50 @@ async function loadSubjects() {
 async function loadQuestions() {
   if (!selectedSubject.value) { questions.value = []; return }
   questions.value = await window.api.getQuestions(selectedSubject.value)
+}
+async function loadCatalog() {
+  try { catalog.value = await window.api.catalog() } catch { catalog.value = null }
+}
+
+// 题目自身无原文时，按 年级+学科+单元+标题 从教材目录匹配（同单元优先，全局兜底）
+function findCatalogContent(title, unit) {
+  if (!catalog.value || !title) return ''
+  const sd = catalog.value[gradeName.value]?.[currentSubjectName.value]
+  if (!sd || typeof sd !== 'object') return ''
+  const groups = unit && sd[unit]
+    ? [sd[unit], ...Object.entries(sd).filter(([k]) => k !== unit).map(([, v]) => v)]
+    : Object.values(sd)
+  for (const arr of groups) {
+    if (Array.isArray(arr)) {
+      const hit = arr.find(a => a.title === title)
+      if (hit) return hit.content || ''
+    }
+  }
+  return ''
+}
+// 表格显示用：题目原文 → 教材目录原文
+function questionContent(q) {
+  if (q.content && q.content.trim()) return q.content
+  return findCatalogContent(q.title, q.unit)
+}
+function isFromCatalog(q) {
+  return !(q.content && q.content.trim()) && !!findCatalogContent(q.title, q.unit)
+}
+// 编辑弹窗：从教材目录填入原文（保存后才写入题目）
+function fillFromCatalog() {
+  const d = editorDialog.value
+  const title = d.field1.trim()
+  const unit = (d.unit || '').trim()
+  if (!title) {
+    showAlert('请先填写标题，再从教材目录匹配原文。', { title: '缺少标题', type: 'warning' })
+    return
+  }
+  const c = findCatalogContent(title, unit)
+  if (!c) {
+    showAlert(`教材目录中未找到「${title}」。请确认年级、学科、单元、标题与教材目录一致。`, { title: '未匹配到', type: 'warning' })
+    return
+  }
+  d.field3a = c
 }
 
 function selectGrade(id) { selectedGrade.value = id }
@@ -418,6 +502,9 @@ function openQuestionDialog(q) {
   editingId = q?.id || null
   editorDialog.value = {
     title: q ? '编辑题目' : '新增题目',
+    showUnit: true,
+    unit: q?.unit || '',
+    category: q?.category || 'recit',
     field1Label: '标题',
     field1: q?.title || '',
     showTextarea: true,
@@ -461,11 +548,23 @@ async function saveStudent() {
 }
 async function saveSubject() {
   const d = editorDialog.value
-  if (!d.field1.trim() || !selectedGrade.value) return
-  if (editingId) {
-    await window.api.updateSubject(editingId, d.field1.trim(), selectedGrade.value)
-  } else {
-    await window.api.addSubject(d.field1.trim(), selectedGrade.value)
+  const name = d.field1.trim()
+  if (!name || !selectedGrade.value) return
+  // 同年级重名校验（编辑时排除自身）
+  const dup = subjects.value.find(s => s.name === name && s.id !== editingId)
+  if (dup) {
+    showAlert(`「${name}」学科在该年级已存在，无需重复添加。如需修改，请直接编辑原学科。`, { title: '学科已存在', type: 'warning' })
+    return
+  }
+  try {
+    if (editingId) {
+      await window.api.updateSubject(editingId, name, selectedGrade.value)
+    } else {
+      await window.api.addSubject(name, selectedGrade.value)
+    }
+  } catch (e) {
+    showAlert('保存失败：' + (e?.message || e), { title: '出错了', type: 'error' })
+    return
   }
   editingId = null; editorDialog.value = null; await loadSubjects()
 }
@@ -473,10 +572,12 @@ async function saveQuestion() {
   const d = editorDialog.value
   if (!selectedSubject.value) return
   const weight = Math.max(1, parseInt(d.field3) || 1)
+  const unit = (d.unit || '').trim()
+  const category = d.category || 'recit'
   if (editingId) {
-    await window.api.updateQuestion(editingId, d.field1.trim(), d.field3a || '', weight)
+    await window.api.updateQuestion(editingId, d.field1.trim(), d.field3a || '', unit, category)
   } else {
-    await window.api.addQuestion(selectedSubject.value, d.field1.trim(), d.field3a || '', weight)
+    await window.api.addQuestion(selectedSubject.value, d.field1.trim(), d.field3a || '', unit, category)
   }
   editingId = null; editorDialog.value = null; await loadQuestions()
 }
@@ -517,7 +618,9 @@ async function changeQuestionWeight(q, delta) {
 
 // ========== 启动 ==========
 onMounted(async () => {
-  await Promise.all([loadGrades(), loadTemplates()])
+  await Promise.all([loadGrades(), loadTemplates(), loadCatalog()])
+  // 手机端改了数据 → 自动刷新
+  window.api.relay.onDataChanged(() => { loadGrades().catch(() => {}) })
 })
 </script>
 
@@ -665,14 +768,22 @@ onMounted(async () => {
 /* ==============================================
    学生列表
 ============================================== */
-.student-list .student-item { flex-wrap: wrap; gap: 10px; }
+.student-list .student-item { flex-wrap: nowrap !important; gap: 10px; min-width: 0; }
 .student-item .item-name {
-  flex: 1; min-width: 140px; display: flex; align-items: center;
+  flex: 1 1 0; min-width: 0; display: flex; align-items: center;
 }
 .stu-info {
   display: flex; align-items: center; gap: 6px;
   font-size: 13px; color: var(--text-main);
+  min-width: 0; flex: 1;
 }
+.stu-name {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.student-item .weight-control,
+.student-item .item-actions { flex-shrink: 0; }
+.student-item .item-actions { flex-wrap: nowrap; white-space: nowrap; }
+.student-item .icon-btn { flex-shrink: 0; }
 
 /* 头像（确定性渐变） */
 .avatar {
@@ -844,6 +955,30 @@ onMounted(async () => {
   max-width: 320px; overflow: hidden; text-overflow: ellipsis;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
+.td-no-content { color: var(--text-dim); }
+.from-catalog-badge { margin-left: 5px; font-size: 11px; }
+/* 编辑弹窗：从教材目录填入 */
+.fill-catalog-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.fill-catalog-btn {
+  font-size: 11px; padding: 5px 13px; border-radius: 999px;
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.35);
+  color: var(--accent);
+}
+.fill-catalog-btn:hover { background: var(--accent-gradient); color: #fff; border-color: transparent; }
+.fill-catalog-hint { font-size: 10px; color: var(--text-dim); }
+/* 单元胶囊 */
+.q-unit-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--accent);
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.28);
+  white-space: nowrap;
+}
+.q-unit-none { font-size: 11px; color: var(--text-dim); }
 .table-empty { padding: 24px; text-align: center; color: var(--text-dim); font-size: 12px; }
 
 /* ==============================================
@@ -917,6 +1052,8 @@ onMounted(async () => {
 ============================================== */
 @media (max-width: 1200px) {
   .three-col { grid-template-columns: repeat(2, 1fr); }
+  /* 学生列独占整行，避免窗口非最大化时删除按钮被挤换行/裁切 */
+  .three-col > .col:nth-child(3) { grid-column: 1 / -1; }
 }
 @media (max-width: 800px) {
   .three-col { grid-template-columns: 1fr; }

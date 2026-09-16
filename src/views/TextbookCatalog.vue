@@ -1,489 +1,620 @@
 <template>
-  <div class="cat-page">
-    <!-- ====== 左侧三层 tab ====== -->
-    <div class="cat-sidebar card">
-      <!-- 年级 -->
-      <div class="seg-block">
-        <div class="seg-title">🎓 年级</div>
-        <div class="seg-group grades">
-          <button
-            v-for="g in grades"
-            :key="g"
-            class="seg-btn"
-            :class="{ active: currentGrade === g }"
-            @click="selectGrade(g)"
-          >{{ g }}</button>
-        </div>
-      </div>
+  <div class="tc-page" :class="{ immersive }">
+    <div class="tc-frame">
 
-      <div class="divider"></div>
-
-      <!-- 学科 -->
-      <div class="seg-block">
-        <div class="seg-title">📚 学科</div>
-        <div class="seg-group subjects">
-          <button
-            v-for="s in subjects"
-            :key="s"
-            class="seg-btn"
-            :class="{ active: currentSubject === s, disabled: !hasSubjectData(s) }"
-            :disabled="!hasSubjectData(s)"
-            @click="selectSubject(s)"
-          >
-            {{ s }}
-            <span v-if="!hasSubjectData(s)" class="seg-empty">∅</span>
+      <!-- ========== 左轨：三级导航 ========== -->
+      <aside class="rail" :class="{ collapsed: railCollapsed }">
+        <div class="rail-brand">
+          <div class="brand-ic">📖</div>
+          <div class="brand-txt">
+            <b>教材目录</b>
+            <span>统编版 · 全学段</span>
+          </div>
+          <button class="rail-collapse" :title="railCollapsed ? '展开导航' : '折叠导航'" @click="railCollapsed = !railCollapsed">
+            {{ railCollapsed ? '»' : '«' }}
           </button>
         </div>
-      </div>
 
-      <div class="divider"></div>
-
-      <!-- 单元 -->
-      <div class="seg-block">
-        <div class="seg-title">📖 单元</div>
-        <div class="seg-group units">
-          <template v-if="currentUnits && currentUnits.length">
-            <button
-              v-for="u in currentUnits"
-              :key="u"
-              class="seg-btn unit-btn"
-              :class="{ active: currentUnit === u }"
-              @click="selectUnit(u)"
-            >{{ u }}</button>
-          </template>
-          <div v-else class="units-empty">暂无单元数据</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ====== 右侧主内容 ====== -->
-    <div class="cat-main card">
-      <!-- 工具栏 -->
-      <div class="content-toolbar" v-if="currentArticle">
-        <div class="content-title">
-          <span class="article-title">{{ currentArticle.title }}</span>
-          <span v-if="currentArticle.author" class="article-author">—— {{ currentArticle.author }}</span>
-        </div>
-        <div class="content-tools">
-          <div class="font-ctrl">
-            <button class="tool-btn" @click="fontSize = Math.max(14, fontSize - 1)" title="减小字号">A−</button>
-            <span class="font-val">{{ fontSize }}px</span>
-            <button class="tool-btn" @click="fontSize = Math.min(24, fontSize + 1)" title="增大字号">A+</button>
+        <!-- 年级 -->
+        <div class="seg">
+          <div class="seg-label">年级</div>
+          <div class="seg-scroll">
+            <div
+              v-for="g in gradeNames"
+              :key="g"
+              class="g-row"
+              :class="{ active: currentGrade === g }"
+              @click="selectGrade(g)"
+              :title="g"
+            >
+              <span class="g-dot"></span>
+              <span class="g-txt">{{ g }}</span>
+              <span class="g-short">{{ g.slice(-2) }}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- 单元内文章列表（如果有多个） -->
-      <div class="unit-articles" v-if="currentUnit && getUnitArticles().length > 1">
-        <div class="unit-articles-label">本单元共 {{ getUnitArticles().length }} 篇</div>
-        <div class="unit-articles-list">
-          <button
-            v-for="(a, i) in getUnitArticles()"
-            :key="i"
-            class="article-chip"
-            :class="{ active: currentArticle && currentArticle.title === a.title }"
-            @click="selectArticle(a)"
-          >{{ a.title }}</button>
+        <!-- 学科 -->
+        <div class="seg">
+          <div class="seg-label">学科</div>
+          <div class="subj-grid">
+            <div
+              v-for="s in SUBJECT_DEFS"
+              :key="s.name"
+              class="s-chip"
+              :class="{ active: currentSubject === s.name, off: !hasSubject(s.name) }"
+              @click="selectSubject(s.name)"
+              :title="hasSubject(s.name) ? s.name : s.name + '（暂无内容）'"
+            >
+              <span class="s-i">{{ s.icon }}</span>
+              <span class="s-txt">{{ s.name }}</span>
+              <span class="s-x">∅</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <!-- 文章内容 -->
-      <div class="content-scroll">
-        <template v-if="currentArticle">
-          <article class="article-body" :style="{ fontSize: fontSize + 'px' }">
-            <h1 class="article-h1">{{ currentArticle.title }}</h1>
-            <p v-if="currentArticle.author" class="article-by">—— {{ currentArticle.author }}</p>
-            <div class="article-text">{{ currentArticle.content }}</div>
-          </article>
-        </template>
-        <!-- 无数据 -->
-        <div v-else-if="currentUnit && (!currentUnits || currentUnits.length === 0 || !getUnitArticles().length)" class="placeholder">
-          <div class="ph-icon">📭</div>
-          <div class="ph-text">暂无数据，后续补充</div>
+        <!-- 单元 -->
+        <div class="seg seg-units">
+          <div class="seg-label">单元</div>
+          <div class="unit-scroll">
+            <div
+              v-for="u in units"
+              :key="u.name"
+              class="u-row"
+              :class="{ active: currentUnit === u.name }"
+              @click="selectUnit(u.name)"
+            >
+              <span class="u-txt">{{ u.name }}</span>
+              <span class="u-cnt">{{ u.articles.length }} 篇</span>
+            </div>
+          </div>
         </div>
-        <div v-else-if="!currentSubject" class="placeholder">
-          <div class="ph-icon">👉</div>
-          <div class="ph-text">请先选择学科和单元</div>
+      </aside>
+
+      <!-- ========== 右侧阅读区 ========== -->
+      <main class="read" :class="{ eye: eyeCare }">
+        <div class="read-progress" :style="{ width: progressPct + '%' }"></div>
+
+        <div class="read-bar">
+          <div class="crumb">
+            <span>{{ currentGrade || '未选择' }}</span>
+            <span class="c-sep">›</span>
+            <span>{{ currentSubject }}</span>
+            <span class="c-sep">›</span>
+            <b>{{ currentUnit || '—' }}</b>
+          </div>
+
+          <div class="read-tools">
+            <div class="tool-group">
+              <button title="缩小字号（−）" @click="changeFont(-1)">A−</button>
+              <span class="tv">{{ fontSize }}</span>
+              <button title="放大字号（=）" @click="changeFont(1)">A+</button>
+            </div>
+            <div class="tool-group">
+              <button :title="'切换正文字体（当前：' + fontFaceLabel + '）'" @click="cycleFont">{{ fontFaceLabel }} ▾</button>
+            </div>
+            <button class="icon-tool" :class="{ on: eyeCare }" title="护眼模式" @click="eyeCare = !eyeCare">🛋️</button>
+            <button class="icon-tool" :class="{ on: immersive }" title="沉浸模式（F）" @click="immersive = !immersive">⛶</button>
+          </div>
         </div>
-        <div v-else class="placeholder">
-          <div class="ph-icon">📖</div>
-          <div class="ph-text">请选择一个单元查看全文</div>
+
+        <div class="read-scroll" :style="{ fontSize: fontSize + 'px' }">
+          <!-- 有内容 -->
+          <div v-if="currentArticle" class="paper" :class="'font-' + fontFace">
+            <div class="a-hero">
+              <span class="a-pill">📚 {{ currentUnit }}</span>
+              <h1 class="a-title">{{ currentArticle.title }}</h1>
+              <div class="a-author" v-if="currentArticle.author">—— {{ currentArticle.author }}</div>
+              <div class="a-meta">
+                <span class="meta-chip">📋 背诵篇目</span>
+                <span class="meta-chip">⏱ 约 {{ estMinutes }} 分钟</span>
+                <span class="meta-chip">🔖 第 {{ globalPos + 1 }} / {{ flatList.length }} 篇</span>
+              </div>
+            </div>
+
+            <div class="ornament"><span>❦</span></div>
+
+            <div class="a-text">
+              <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
+            </div>
+
+            <!-- 上一篇 / 下一篇 -->
+            <div class="nav-row">
+              <div class="nav-card" :class="{ disabled: !prevArticle }" @click="prevA">
+                <div class="nav-ic">←</div>
+                <div class="nav-txt">
+                  <div class="n-l">上一篇</div>
+                  <div class="n-t">{{ prevArticle ? prevArticle.title : '已是第一篇' }}</div>
+                </div>
+              </div>
+              <div class="nav-card next" :class="{ disabled: !nextArticle }" @click="nextA">
+                <div class="nav-txt">
+                  <div class="n-l">下一篇{{ nextArticle ? ' · ' + nextArticle.unit : '' }}</div>
+                  <div class="n-t">{{ nextArticle ? nextArticle.title : '已是最后一篇' }}</div>
+                </div>
+                <span class="n-arrow">→</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 空态 -->
+          <div v-else class="read-empty">
+            <div class="re-emoji">📭</div>
+            <div class="re-title">该学科暂无教材内容</div>
+            <div class="re-sub">请在左侧选择其他年级或学科（标 ∅ 的学科暂无内容）</div>
+          </div>
         </div>
-      </div>
+      </main>
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// 静态年级/学科顺序
-const grades = ['一年级', '二年级', '三年级', '四年级', '五年级', '六年级', '七年级', '八年级', '九年级']
-const subjects = ['语文', '数学', '英语', '物理', '化学', '生物', '政治', '历史', '地理']
+// ========== 学科定义（图标固定） ==========
+const SUBJECT_DEFS = [
+  { name: '语文', icon: '📖' },
+  { name: '数学', icon: '🔢' },
+  { name: '英语', icon: '🔤' },
+  { name: '物理', icon: '⚛️' },
+  { name: '化学', icon: '🧪' },
+  { name: '生物', icon: '🧬' },
+  { name: '政治', icon: '⚖️' },
+  { name: '历史', icon: '📜' },
+  { name: '地理', icon: '🌐' }
+]
 
+// ========== 状态 ==========
 const catalog = ref(null)
-
-const currentGrade = ref('九年级')
+const currentGrade = ref('')
 const currentSubject = ref('语文')
 const currentUnit = ref('')
-const fontSize = ref(18)
-const currentArticle = ref(null)
+const articleIdx = ref(0)
 
-// ========== 加载 catalog ==========
-async function loadCatalog() {
-  try {
-    catalog.value = await window.api.catalog()
-  } catch (e) {
-    console.warn('[catalog] 加载失败:', e.message)
-    catalog.value = null
-  }
+const fontSize = ref(18)
+const fontFace = ref('yahei')
+const eyeCare = ref(false)
+const immersive = ref(false)
+const railCollapsed = ref(false)
+
+// ========== 数据视图 ==========
+const gradeNames = computed(() => catalog.value ? Object.keys(catalog.value) : [])
+
+function hasSubject(name) {
+  const sd = catalog.value?.[currentGrade.value]?.[name]
+  return !!(sd && typeof sd === 'object')
 }
 
-// ========== 计算 ==========
-const gradeData = computed(() => catalog.value?.[currentGrade.value] || null)
-const subjectData = computed(() => gradeData.value?.[currentSubject.value] || null)
-const currentUnits = computed(() => {
-  const u = subjectData.value
-  if (!u || typeof u !== 'object') return []
-  return Object.keys(u)
+const subjectData = computed(() => {
+  const sd = catalog.value?.[currentGrade.value]?.[currentSubject.value]
+  return sd && typeof sd === 'object' ? sd : null
 })
 
-function hasSubjectData(s) {
-  const g = catalog.value?.[currentGrade.value]
-  if (!g) return false
-  const d = g[s]
-  return d && typeof d === 'object' && Object.keys(d).length > 0
-}
+// 单元列表（保序，只保留非空数组单元）
+const units = computed(() => {
+  if (!subjectData.value) return []
+  return Object.entries(subjectData.value)
+    .filter(([, v]) => Array.isArray(v) && v.length)
+    .map(([name, articles]) => ({ name, articles }))
+})
 
-function getUnitArticles() {
-  if (!subjectData.value || !currentUnit.value) return []
-  return subjectData.value[currentUnit.value] || []
-}
+const currentArticles = computed(() =>
+  units.value.find(u => u.name === currentUnit.value)?.articles || []
+)
+const currentArticle = computed(() => currentArticles.value[articleIdx.value] || null)
+
+// 跨单元展平的全局篇目顺序
+const flatList = computed(() =>
+  units.value.flatMap(u => u.articles.map(a => ({ ...a, unit: u.name })))
+)
+const globalPos = computed(() =>
+  flatList.value.findIndex(a => a.unit === currentUnit.value && a.title === currentArticle.value?.title)
+)
+const prevArticle = computed(() => globalPos.value > 0 ? flatList.value[globalPos.value - 1] : null)
+const nextArticle = computed(() =>
+  globalPos.value >= 0 && globalPos.value < flatList.value.length - 1
+    ? flatList.value[globalPos.value + 1] : null
+)
+const progressPct = computed(() =>
+  flatList.value.length && globalPos.value >= 0 ? ((globalPos.value + 1) / flatList.value.length) * 100 : 0
+)
+
+const paragraphs = computed(() =>
+  (currentArticle.value?.content || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+)
+const estMinutes = computed(() => {
+  const len = (currentArticle.value?.content || '').replace(/\s/g, '').length
+  return Math.max(1, Math.round(len / 80))
+})
+
+const fontFaceLabel = computed(() => ({ yahei: '雅黑', simsun: '宋体', kaiti: '楷体' })[fontFace.value])
 
 // ========== 选择 ==========
 function selectGrade(g) {
   currentGrade.value = g
-  // 如果当前学科在新年级无数据 → 自动切到第一个有数据的学科
-  if (!hasSubjectData(currentSubject.value)) {
-    const first = subjects.find(s => hasSubjectData(s))
-    currentSubject.value = first || ''
+  if (!hasSubject(currentSubject.value)) {
+    const first = SUBJECT_DEFS.find(s => hasSubject(s.name))
+    currentSubject.value = first?.name || '语文'
   }
-  currentUnit.value = ''
-  currentArticle.value = null
   ensureUnit()
 }
-
-function selectSubject(s) {
-  currentSubject.value = s
-  currentUnit.value = ''
-  currentArticle.value = null
+function selectSubject(name) {
+  if (!hasSubject(name)) return
+  currentSubject.value = name
   ensureUnit()
 }
-
 function selectUnit(u) {
   currentUnit.value = u
-  const articles = getUnitArticles()
-  currentArticle.value = articles[0] || null
+  articleIdx.value = 0
 }
-
-function selectArticle(a) {
-  currentArticle.value = a
-}
-
-// 确保 unit 自动选中（切换年级/学科后自动挑第一个有数据的单元）
 function ensureUnit() {
-  if (currentUnits.value.length > 0 && !currentUnit.value) {
-    selectUnit(currentUnits.value[0])
+  if (!units.value.find(u => u.name === currentUnit.value)) {
+    currentUnit.value = units.value[0]?.name || ''
+    articleIdx.value = 0
   }
+}
+
+// 按全局展平位置跳转（自动跨单元）
+function jumpFlat(pos) {
+  if (pos < 0 || pos >= flatList.value.length) return
+  const a = flatList.value[pos]
+  if (a.unit !== currentUnit.value) currentUnit.value = a.unit
+  const arr = units.value.find(u => u.name === a.unit)?.articles || []
+  articleIdx.value = Math.max(0, arr.findIndex(x => x.title === a.title))
+}
+function prevA() { if (prevArticle.value) jumpFlat(globalPos.value - 1) }
+function nextA() { if (nextArticle.value) jumpFlat(globalPos.value + 1) }
+
+// 单元切换 J / K
+function jumpUnit(dir) {
+  const i = units.value.findIndex(u => u.name === currentUnit.value)
+  const ni = i + dir
+  if (ni >= 0 && ni < units.value.length) selectUnit(units.value[ni].name)
+}
+
+// 字号 / 字体
+function changeFont(delta) {
+  fontSize.value = Math.min(26, Math.max(14, fontSize.value + delta))
+}
+function cycleFont() {
+  const order = ['yahei', 'simsun', 'kaiti']
+  fontFace.value = order[(order.indexOf(fontFace.value) + 1) % order.length]
+}
+
+// ========== 键盘快捷键 ==========
+function onKey(e) {
+  const tag = e.target?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+  if (e.key === 'ArrowRight') nextA()
+  else if (e.key === 'ArrowLeft') prevA()
+  else if (e.key === 'j' || e.key === 'J') jumpUnit(1)
+  else if (e.key === 'k' || e.key === 'K') jumpUnit(-1)
+  else if (e.key === 'f' || e.key === 'F') immersive.value = !immersive.value
+  else if (e.key === '=' || e.key === '+') changeFont(1)
+  else if (e.key === '-') changeFont(-1)
+  else if (e.key === 'Escape') immersive.value = false
 }
 
 onMounted(async () => {
-  await loadCatalog()
-  // 加载完后确保 unit / article 都选中
-  ensureUnit()
-  if (!currentArticle.value) {
-    const articles = getUnitArticles()
-    currentArticle.value = articles[0] || null
+  catalog.value = await window.api.catalog()
+  const g = gradeNames.value.includes('九年级') ? '九年级' : gradeNames.value[0] || ''
+  currentGrade.value = g
+  if (!hasSubject(currentSubject.value)) {
+    const first = SUBJECT_DEFS.find(s => hasSubject(s.name))
+    currentSubject.value = first?.name || '语文'
   }
+  ensureUnit()
+  document.addEventListener('keydown', onKey)
 })
+onUnmounted(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <style scoped>
-.cat-page {
-  padding: 20px;
-  display: flex;
-  gap: 16px;
-  min-height: 100%;
+.tc-page {
+  height: 100%; padding: 14px;
+  --t1: #f3f4ff; --t2: #a4a7c4; --t3: #6d7090;
+  --rail-bg: linear-gradient(180deg, #1a1a36, #15152c);
+  --read-bg: linear-gradient(180deg, #191931, #14142a);
+  --inset: rgba(255,255,255,0.05);
+  --line: rgba(255,255,255,0.09);
+  --paper: rgba(255,255,255,0.03);
+  --grad: linear-gradient(135deg, #00d4ff, #7c3aed);
 }
 
-/* ====== 左侧 sidebar ====== */
-.cat-sidebar {
-  width: 260px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow-y: auto;
-  gap: 4px;
-}
-.cat-sidebar .divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--surface-4), transparent);
-  margin: 12px 4px;
-}
-
-.seg-block {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.seg-title {
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-.seg-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.seg-btn {
-  flex: 0 0 auto;
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 8px;
-  background: var(--surface-1);
-  border: var(--border-subtle);
-  color: var(--text-sub);
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-  min-width: 0;
-  padding-inline: 10px;
-}
-.seg-btn:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--text-main);
-  border-color: rgba(0, 212, 255, 0.25);
-  transform: translateY(-1px);
-}
-.seg-btn.active {
-  background: var(--accent-gradient);
-  color: #fff;
-  border: none;
-  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.35);
-  font-weight: 600;
-}
-.seg-btn.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.seg-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  color: var(--text-dim);
-}
-.seg-empty {
-  font-size: 9px;
-  opacity: 0.6;
-  margin-left: 2px;
-}
-
-/* 年级：大号分段控制器 */
-.seg-group.grades .seg-btn {
-  font-size: 13px;
-  padding: 7px 10px;
-  font-weight: 500;
-}
-
-/* 单元按钮更窄 */
-.seg-group.units {
-  flex-direction: column;
-  flex-wrap: nowrap;
-}
-.seg-group.units .seg-btn {
-  text-align: left;
-  font-size: 12px;
-  padding: 7px 12px;
-}
-.seg-group.units .seg-btn.active {
-  border-left: 3px solid #fff;
-}
-
-.units-empty {
-  font-size: 11px;
-  color: var(--text-dim);
-  padding: 8px 4px;
-}
-
-/* ====== 右侧主内容 ====== */
-.cat-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 0;
-}
-
-.content-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: var(--border-subtle);
-  background: linear-gradient(180deg, rgba(0, 212, 255, 0.06), transparent);
-}
-.content-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  min-width: 0;
-}
-.article-title {
-  font-size: 18px;
-  font-weight: bold;
-  color: var(--text-main);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 60%;
-}
-.article-author {
-  font-size: 12px;
-  color: var(--text-dim);
-  flex-shrink: 0;
-}
-
-.content-tools {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-shrink: 0;
-}
-.font-ctrl {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--surface-1);
-  padding: 3px 6px;
-  border-radius: 8px;
-  border: var(--border-subtle);
-}
-.font-val {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-family: Consolas, monospace;
-  min-width: 38px;
-  text-align: center;
-}
-.tool-btn {
-  padding: 3px 8px;
-  font-size: 11px;
-  border-radius: 6px;
-  min-width: 28px;
-  background: transparent;
-  border: var(--border-subtle);
-  color: var(--text-sub);
-}
-.tool-btn:hover {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-}
-
-/* 单元内文章切换 */
-.unit-articles {
-  padding: 10px 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: var(--border-subtle);
-  flex-wrap: wrap;
-}
-.unit-articles-label {
-  font-size: 11px;
-  color: var(--text-dim);
-  flex-shrink: 0;
-}
-.unit-articles-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-}
-.article-chip {
-  padding: 4px 12px;
-  font-size: 12px;
-  border-radius: 999px;
-  background: var(--surface-1);
-  border: var(--border-subtle);
-  color: var(--text-sub);
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-}
-.article-chip:hover {
-  background: var(--surface-3);
-  color: var(--text-main);
-}
-.article-chip.active {
-  background: rgba(0, 212, 255, 0.15);
-  color: var(--accent);
-  border-color: rgba(0, 212, 255, 0.4);
-}
-
-/* 正文区 */
-.content-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 40px 40px;
-}
-.article-body {
-  max-width: 800px;
-  margin: 0 auto;
-  line-height: 1.8;
-  color: var(--text-main);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.article-h1 {
-  font-size: 1.8em;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 6px;
-  color: var(--text-main);
-  background: linear-gradient(135deg, #fff, #c4c4ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-.article-by {
-  text-align: center;
-  font-size: 0.9em;
-  color: var(--text-dim);
-  margin-bottom: 28px;
-}
-.article-text {
-  white-space: pre-wrap;
-}
-
-/* 占位 */
-.placeholder {
+.tc-frame {
   height: 100%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--text-dim);
+  border-radius: 20px; overflow: hidden;
+  background: var(--read-bg);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 70px rgba(0,0,0,0.45);
 }
-.ph-icon {
-  font-size: 48px;
-  opacity: 0.5;
+
+/* ========== 左轨 ========== */
+.rail {
+  width: 252px; flex-shrink: 0;
+  background: var(--rail-bg);
+  border-right: 1px solid var(--line);
+  padding: 18px 14px;
+  display: flex; flex-direction: column; gap: 16px;
+  overflow: hidden;
+  transition: width 0.28s var(--ease-out, ease);
 }
-.ph-text {
-  font-size: 13px;
+.rail.collapsed { width: 64px; padding: 18px 8px; align-items: center; }
+
+/* 品牌 */
+.rail-brand { display: flex; align-items: center; gap: 9px; padding: 0 4px; }
+.brand-ic {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  background: var(--grad);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 6px 16px rgba(60,120,220,0.35);
+}
+.brand-txt { flex: 1; min-width: 0; }
+.brand-txt b { display: block; font-size: 13.5px; color: var(--t1); }
+.brand-txt span { display: block; font-size: 9px; color: var(--t3); margin-top: 2px; }
+.rail-collapse {
+  width: 24px; height: 24px; padding: 0; border-radius: 7px;
+  background: transparent; border: 1px solid var(--line);
+  color: var(--t3); font-size: 10px; cursor: pointer; flex-shrink: 0;
+}
+.rail-collapse:hover { color: var(--t1); border-color: var(--t1); }
+.rail.collapsed .brand-txt { display: none; }
+
+/* 分区 */
+.seg { display: flex; flex-direction: column; gap: 7px; min-height: 0; }
+.seg-label {
+  font-size: 10px; color: var(--t3); letter-spacing: 1.5px;
+  font-weight: 700; padding: 0 6px;
+}
+.seg-scroll { display: flex; flex-direction: column; gap: 3px; max-height: 150px; overflow-y: auto; }
+.unit-scroll { display: flex; flex-direction: column; gap: 3px; overflow-y: auto; min-height: 0; }
+.seg-units { flex: 1; }
+
+/* 年级行 */
+.g-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px; border-radius: 10px; cursor: pointer;
+  font-size: 12.5px; color: var(--t2);
+  border: 1px solid transparent;
+}
+.g-row:hover { background: var(--inset); color: var(--t1); }
+.g-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--t3); flex-shrink: 0; }
+.g-short { display: none; font-size: 11px; }
+.g-row.active {
+  background: var(--grad); color: #fff; font-weight: 700;
+  box-shadow: 0 6px 16px rgba(60,120,220,0.3);
+}
+.g-row.active .g-dot { background: #fff; }
+
+/* 学科芯片 */
+.subj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.s-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 9px; border-radius: 10px; cursor: pointer;
+  background: var(--inset); border: 1px solid var(--line);
+  font-size: 11.5px; color: var(--t2);
+}
+.s-i { font-size: 14px; flex-shrink: 0; }
+.s-x { display: none; margin-left: auto; font-size: 9px; color: var(--t3); }
+.s-chip:hover { border-color: rgba(0,212,255,0.4); color: var(--t1); }
+.s-chip.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.16), rgba(124,58,237,0.18));
+  border-color: rgba(0,212,255,0.5); color: var(--t1); font-weight: 700;
+}
+.s-chip.off { opacity: 0.32; cursor: not-allowed; }
+.s-chip.off .s-x { display: inline; }
+
+/* 单元行 */
+.u-row {
+  position: relative;
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px; border-radius: 10px; cursor: pointer;
+  font-size: 12px; color: var(--t2);
+  border: 1px solid transparent;
+}
+.u-row:hover { background: var(--inset); color: var(--t1); }
+.u-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u-cnt {
+  margin-left: auto; font-size: 9.5px; color: var(--t3);
+  background: var(--inset); border: 1px solid var(--line);
+  border-radius: 999px; padding: 1px 8px; flex-shrink: 0;
+}
+.u-row.active { background: var(--inset); border-color: rgba(0,212,255,0.35); color: var(--t1); font-weight: 700; }
+.u-row.active::before {
+  content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 16px; border-radius: 2px; background: var(--grad);
+}
+.u-row.active .u-cnt { color: #00d4ff; }
+
+/* 折叠态 */
+.rail.collapsed .seg-label,
+.rail.collapsed .s-txt,
+.rail.collapsed .u-txt,
+.rail.collapsed .u-cnt,
+.rail.collapsed .seg-units { display: none; }
+.rail.collapsed .g-row { justify-content: center; padding: 7px 4px; }
+.rail.collapsed .g-txt { display: none; }
+.rail.collapsed .g-short { display: inline; }
+.rail.collapsed .subj-grid { grid-template-columns: 1fr; }
+.rail.collapsed .s-chip { justify-content: center; padding: 8px 4px; }
+.rail.collapsed .s-chip.off .s-x { display: none; }
+
+/* ========== 阅读区 ========== */
+.read {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--read-bg);
+}
+.read-progress {
+  height: 3px; flex-shrink: 0; width: 0;
+  background: var(--grad);
+  box-shadow: 0 0 12px rgba(0,212,255,0.6);
+  transition: width 0.3s var(--ease-out, ease);
+}
+.read-bar {
+  display: flex; align-items: center; gap: 14px; flex-shrink: 0;
+  padding: 12px 26px;
+  border-bottom: 1px solid var(--line);
+}
+.crumb { font-size: 11.5px; color: var(--t2); display: flex; gap: 8px; align-items: center; min-width: 0; overflow: hidden; }
+.crumb b { color: var(--t1); font-weight: 700; white-space: nowrap; }
+.crumb .c-sep { color: var(--t3); }
+
+.read-tools { margin-left: auto; display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.tool-group {
+  display: flex; align-items: center; gap: 2px;
+  background: var(--inset); border: 1px solid var(--line);
+  border-radius: 9px; padding: 3px;
+}
+.tool-group button {
+  border: 0; background: transparent; color: var(--t2);
+  font-size: 11px; padding: 4px 8px; border-radius: 6px; cursor: pointer;
+}
+.tool-group button:hover { color: var(--t1); background: rgba(255,255,255,0.06); }
+.tool-group .tv { font-size: 10px; color: var(--t3); min-width: 28px; text-align: center; font-family: Consolas; }
+.icon-tool {
+  width: 30px; height: 30px; padding: 0; border-radius: 9px;
+  background: var(--inset); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; cursor: pointer; color: var(--t2);
+}
+.icon-tool:hover { color: var(--t1); }
+.icon-tool.on {
+  background: linear-gradient(135deg, rgba(0,212,255,0.18), rgba(124,58,237,0.2));
+  border-color: rgba(0,212,255,0.5);
+}
+
+.read-scroll { flex: 1; overflow-y: auto; padding: 34px 48px 28px; }
+
+/* 纸张 */
+.paper {
+  max-width: 720px; margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 38px 50px 32px;
+}
+.font-yahei { font-family: "Microsoft YaHei","Segoe UI","PingFang SC",sans-serif; }
+.font-simsun { font-family: "SimSun","NSimSun",serif; }
+.font-kaiti { font-family: "KaiTi","STKaiti",serif; }
+
+.a-hero { text-align: center; }
+.a-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: #00d4ff;
+  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3);
+  border-radius: 999px; padding: 4px 13px;
+}
+.a-title {
+  margin: 16px 0 8px; font-size: 2.2em; font-weight: 800; letter-spacing: 6px;
+  background: linear-gradient(135deg, #ffffff, #b8b8f0);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  line-height: 1.3;
+}
+.a-author { font-size: 0.72em; color: var(--t3); }
+.a-meta { margin-top: 13px; display: flex; justify-content: center; gap: 9px; flex-wrap: wrap; }
+.meta-chip {
+  font-size: 0.62em; color: var(--t2); background: var(--inset);
+  border: 1px solid var(--line); border-radius: 8px; padding: 3px 10px;
+}
+
+.ornament { display: flex; align-items: center; gap: 10px; margin: 22px 0 20px; color: var(--t3); }
+.ornament::before, .ornament::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line));
+}
+.ornament::after { background: linear-gradient(90deg, var(--line), transparent); }
+.ornament span { font-size: 12px; }
+
+.a-text { line-height: 2.1; color: var(--t2); }
+.a-text p { margin-bottom: 14px; text-indent: 2em; }
+.a-text p:first-child::first-letter {
+  font-size: 2.6em; float: left; line-height: 1;
+  padding: 4px 10px 0 0; color: #00d4ff; font-weight: 800;
+}
+
+/* 上一篇 / 下一篇 */
+.nav-row { display: flex; gap: 13px; margin-top: 24px; }
+.nav-card {
+  flex: 1; min-width: 0;
+  border: 1px solid var(--line); border-radius: 14px;
+  padding: 13px 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 11px;
+  background: var(--inset);
+}
+.nav-card.next {
+  background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(124,58,237,0.12));
+  border-color: rgba(0,212,255,0.3);
+}
+.nav-card.disabled { opacity: 0.35; cursor: default; }
+.nav-ic {
+  width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
+  background: var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.nav-txt { min-width: 0; flex: 1; }
+.nav-txt .n-l { font-size: 9.5px; color: var(--t3); margin-bottom: 2px; }
+.nav-txt .n-t {
+  font-size: 13px; font-weight: 700; color: var(--t1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.n-arrow { color: var(--t3); font-size: 17px; flex-shrink: 0; }
+.nav-card.next .n-arrow { color: #00d4ff; }
+
+/* 空态 */
+.read-empty { text-align: center; padding: 110px 20px; color: var(--t3); }
+.re-emoji { font-size: 54px; margin-bottom: 16px; }
+.re-title { font-size: 17px; color: var(--t1); font-weight: bold; margin-bottom: 8px; }
+.re-sub { font-size: 12px; color: var(--t3); }
+
+/* ========== 护眼模式 ========== */
+.read.eye { background: linear-gradient(180deg, #2c2413, #221c0e); }
+.read.eye .paper { background: rgba(255,221,150,0.05); }
+.read.eye .a-text { color: #d8c9a0; }
+.read.eye .a-text p:first-child::first-letter { color: #ffb84d; }
+.read.eye .a-pill { color: #ffb84d; background: rgba(255,184,77,0.1); border-color: rgba(255,184,77,0.3); }
+
+/* ========== 沉浸模式 ========== */
+.tc-page.immersive .rail { display: none; }
+
+/* ========== 浅色主题覆盖 ========== */
+html[data-theme-mode='light'] .tc-page {
+  --t1: #1d2436; --t2: #59607a; --t3: #9aa2b8;
+  --rail-bg: #f7f9fd;
+  --read-bg: #fbfcfe;
+  --inset: #f1f4fa;
+  --line: #e5eaf4;
+  --paper: #ffffff;
+}
+html[data-theme-mode='light'] .tc-frame { box-shadow: 0 20px 60px rgba(40,60,120,0.15); }
+html[data-theme-mode='light'] .paper { box-shadow: 0 12px 40px rgba(40,60,120,0.08); }
+html[data-theme-mode='light'] .a-title {
+  background: linear-gradient(135deg, #1d2436, #6a4bd6);
+  -webkit-background-clip: text; background-clip: text;
+}
+html[data-theme-mode='light'] .a-text { color: #33384a; }
+html[data-theme-mode='light'] .a-text p:first-child::first-letter { color: #7c3aed; }
+html[data-theme-mode='light'] .a-pill { color: #0a93ad; background: #e6f8fc; border-color: #b8ecf5; }
+html[data-theme-mode='light'] .tool-group button:hover { background: rgba(0,0,0,0.05); }
+html[data-theme-mode='light'] .read.eye { background: #f7f1dd; }
+html[data-theme-mode='light'] .read.eye .paper { background: #fffdf5; box-shadow: 0 12px 40px rgba(120,90,20,0.08); }
+html[data-theme-mode='light'] .read.eye .a-text { color: #4a4030; }
+
+/* ========== 响应式 ========== */
+@media (max-width: 900px) {
+  .rail { width: 64px; padding: 18px 8px; align-items: center; }
+  .rail .seg-label, .rail .s-txt, .rail .u-txt, .rail .u-cnt, .rail .seg-units, .rail .brand-txt { display: none; }
+  .rail .g-row { justify-content: center; padding: 7px 4px; }
+  .rail .g-txt { display: none; }
+  .rail .g-short { display: inline; }
+  .rail .subj-grid { grid-template-columns: 1fr; }
+  .rail .s-chip { justify-content: center; padding: 8px 4px; }
+  .rail .s-chip.off .s-x { display: none; }
+  .read-scroll { padding: 24px 20px; }
+  .paper { padding: 28px 22px 24px; }
 }
 </style>

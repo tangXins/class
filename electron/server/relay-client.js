@@ -34,7 +34,6 @@ class RelayClient extends EventEmitter {
     this.authorizedMobiles = []
     this._stopped = true
     this._reconnectAttempts = 0
-    this._maxReconnectAttempts = 60   // 退避最多约 5 分钟（扛 Render 冷启动）
     this._heartbeatTimer = null
     this._reconnectTimer = null
     // EventEmitter 的 'error' 事件无监听者时会抛崩主进程，加空监听兜底
@@ -102,7 +101,7 @@ class RelayClient extends EventEmitter {
     this._stopped = true
     this._stopHeartbeat()
     if (this._reconnectTimer) { clearTimeout(this._reconnectTimer); this._reconnectTimer = null }
-    this._reconnectAttempts = this._maxReconnectAttempts
+    this._reconnectAttempts = 0
     if (this.ws) {
       try { this.ws.removeAllListeners() } catch {}
       try { this.ws.close() } catch {}
@@ -121,6 +120,21 @@ class RelayClient extends EventEmitter {
   listPaired() { this._send({ type: 'listPaired' }) }
   grantMobile(mobile) { this._send({ type: 'grantMobile', ...mobile }) }
   revokeMobile(mobileId) { this._send({ type: 'revokeMobile', mobileId }) }
+
+  /** 给已配对手机发消息/连接请求；结果通过 notifyResult 事件回来 */
+  notifyMobile(mobileId, title, body) {
+    this._send({ type: 'notifyMobile', mobileId, title, body })
+  }
+
+  /** 应答手机的数据请求 */
+  callResult(payload) {
+    this._send({ type: 'callResult', ...payload })
+  }
+
+  /** 向教室内所有手机广播（数据变更通知等） */
+  dataBroadcast(msg) {
+    this._send({ type: 'dataBroadcast', msg })
+  }
 
   getStatus() {
     return {
@@ -155,12 +169,8 @@ class RelayClient extends EventEmitter {
 
   _tryReconnect() {
     if (this._stopped) return
-    if (this._reconnectAttempts >= this._maxReconnectAttempts) {
-      this.emit('reconnectFailed')
-      return
-    }
     this._reconnectAttempts++
-    // 1s 起步，5s 封顶；公网冷启动期间持续重试
+    // 1s 起步，5s 封顶；无限重试，直到网络恢复 / Render 冷启动完成
     const delay = Math.min(5000, this._reconnectAttempts * 1000)
     this._reconnectTimer = setTimeout(() => {
       const base = this.relayUrl.replace(/\/relay$/, '').replace(/\/+$/, '')
@@ -201,8 +211,31 @@ class RelayClient extends EventEmitter {
       case 'pairedList':
         this.emit('pairedList', msg.mobiles)
         break
+      case 'mobileOnline':
+        this.emit('mobileOnline', {
+          mobileId: msg.mobileId,
+          sender: msg.sender,
+          state: msg.state
+        })
+        break
+      case 'mobileOffline':
+        this.emit('mobileOffline', msg.mobileId)
+        break
+      case 'notifyResult':
+        this.emit('notifyResult', {
+          mobileId: msg.mobileId,
+          delivered: msg.delivered,
+          state: msg.state
+        })
+        break
       case 'revokeOk':
         this.emit('revokeOk', msg.mobileId)
+        break
+      case 'call':
+        this.emit('call', msg)
+        break
+      case 'dataPush':
+        this.emit('dataPush', msg)
         break
       case 'error':
         this.emit('serverError', msg.msg)

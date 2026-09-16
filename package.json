@@ -1,17 +1,23 @@
 {
   "name": "class-manager",
   "version": "1.0.0",
-  "description": "班级管理大师 - PC 原生软件",
+  "description": "班级管理大师",
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && cross-env NODE_ENV=development electron .\"",
     "build:renderer": "vite build",
     "sync:relay": "node scripts/sync-relay-assets.js",
-    "build": "node scripts/sync-relay-assets.js && vite build && electron-builder",
-    "build:win": "node scripts/sync-relay-assets.js && vite build && electron-builder --win --x64",
+    "build": "node scripts/sync-relay-assets.js && vite build && electron-builder && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-green-zip.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-portable.ps1",
+    "build:win": "node scripts/sync-relay-assets.js && vite build && electron-builder --win --x64 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-green-zip.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make-portable.ps1",
     "start": "electron ."
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/barcode-scanner": "^3.1.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/local-notifications": "^8.3.1",
     "adm-zip": "^0.6.1",
     "qrcode": "^1.5.4",
     "sql.js": "^1.11.0",
@@ -30,6 +36,7 @@
   "build": {
     "appId": "com.classmanager.app",
     "productName": "班级管理大师",
+    "publish": null,
     "directories": {
       "output": "release"
     },
@@ -42,7 +49,8 @@
       "node_modules/adm-zip/**/*",
       "node_modules/qrcode/**/*",
       "node_modules/sql.js/**/*",
-      "node_modules/ws/**/*"
+      "node_modules/ws/**/*",
+      "!node_modules/@capacitor/**/*"
     ],
     "win": {
       "target": [
@@ -51,19 +59,9 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
-      "icon": "public/icon.png",
-      "signAndEditExecutable": false
-    },
-    "portable": {
-      "artifactName": "班级管理大师-便携版-${version}.${ext}"
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": false,

@@ -121,22 +121,50 @@
         </div>
 
         <div class="display-footer" v-if="lastMsg">
-          <button class="primary" @click="speakAgain">🔊 再读一遍</button>
           <button class="btn-danger" @click="clearMsg">清空</button>
         </div>
       </div>
     </div>
 
-    <!-- ========== 本地测试 ========== -->
-    <div class="test-area card">
+    <!-- ========== 给手机发消息 ========== -->
+    <div class="notify-area card">
       <div class="col-header">
-        <h3>🧪 本地测试</h3>
+        <h3>📨 给手机发消息</h3>
+        <button class="btn-mini" @click="refreshPaired">🔄 刷新</button>
       </div>
-      <div class="test-row">
-        <input v-model="testMsg.content" placeholder="输入要显示的文字..." @keyup.enter="testSend" />
-        <input v-model="testMsg.sender" placeholder="发送者" class="test-sender" />
-        <button class="primary" @click="testSend">测试发送</button>
+      <div v-if="!relayConnected" class="notify-empty">
+        <span class="ne-icon">📡</span>
+        <span>未连接云端 — 手机配对后才能发送</span>
       </div>
+      <div v-else-if="!pairedMobiles.length" class="notify-empty">
+        <span class="ne-icon">📱</span>
+        <span>暂无已配对手机 — 学生扫码或输入配对码连接后会出现在这里</span>
+      </div>
+      <template v-else>
+        <div class="notify-targets">
+          <button
+            v-for="m in pairedMobiles" :key="m.mobileId"
+            class="target-chip"
+            :class="{ active: notifyTargetId === m.mobileId }"
+            @click="selectTarget(m.mobileId)"
+          >
+            <span class="chip-dot" :class="m.state || 'offline'"></span>
+            <span class="chip-name">{{ m.sender || '未命名设备' }}</span>
+            <span class="chip-state">{{ stateLabel(m.state) }}</span>
+          </button>
+        </div>
+        <div class="notify-row">
+          <input
+            ref="notifyInput"
+            v-model="notifyText"
+            placeholder="输入要发到手机的消息，手机通知栏会弹出；手机不在线则下次打开 App 自动收到"
+            @keyup.enter="sendNotify"
+          />
+          <button class="primary" :disabled="!notifyTargetId || !notifyText.trim() || notifySending" @click="sendNotify">
+            {{ notifySending ? '发送中…' : '📨 发送' }}
+          </button>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -156,7 +184,16 @@ const lanIp = ref('')
 const qrImg = ref('')
 
 const lastMsg = ref(null)
-const testMsg = ref({ content: '', sender: '本地测试' })
+
+// 已配对手机 & 给手机发消息
+const pairedMobiles = ref([])
+const notifyTargetId = ref('')
+const notifyText = ref('')
+const notifySending = ref(false)
+const notifyInput = ref(null)
+
+const stateLabels = { active: '在教室', standby: '在线', offline: '离线' }
+function stateLabel(s) { return stateLabels[s] || '离线' }
 
 const displayCode = computed(() => {
   if (!relayConnected.value || !pairCode.value) return '------'
@@ -215,16 +252,36 @@ function addMessage(data) {
   }
 }
 
-function testSend() {
-  if (!testMsg.value.content.trim()) return
-  addMessage({ content: testMsg.value.content, sender: testMsg.value.sender })
-  testMsg.value.content = ''
+function selectTarget(id) {
+  notifyTargetId.value = notifyTargetId.value === id ? '' : id
+  if (notifyTargetId.value) nextTick(() => notifyInput.value?.focus())
 }
-function speakAgain() { if (lastMsg.value) window.api.tts.speak(lastMsg.value.content) }
+async function refreshPaired() {
+  try { await window.api.relay.listPaired() } catch {}
+}
+async function sendNotify() {
+  const body = notifyText.value.trim()
+  if (!notifyTargetId.value || !body || notifySending.value) return
+  notifySending.value = true
+  try {
+    const r = await window.api.notify.send(notifyTargetId.value, `${className.value} 请求连接`, body)
+    if (r.ok) {
+      showAlert(r.pending ? '⏳ 手机不在线，已保存，下次打开 App 自动收到' : '✓ 已送达，手机通知栏会弹出',
+        { title: '发送成功', showCancel: false, type: 'success' })
+      notifyText.value = ''
+    } else {
+      showAlert('发送失败：' + (r.error || '未知错误'), { title: '发送失败', showCancel: false, type: 'warning' })
+    }
+  } catch (e) {
+    showAlert('发送失败：' + e.message, { title: '发送失败', showCancel: false, type: 'warning' })
+  } finally {
+    notifySending.value = false
+  }
+}
 function clearMsg() { lastMsg.value = null }
 
 watch(pairCode, () => { if (relayConnected.value) genQR() })
-watch(relayConnected, () => genQR())
+watch(relayConnected, (v) => { genQR(); if (v) refreshPaired() })
 
 onMounted(async () => {
   // 读取应用配置
@@ -258,6 +315,15 @@ onMounted(async () => {
   // 监听消息（两个通道：Relay 直接事件 + App.vue 转发的 CustomEvent）
   window.api.relay.onMessage((data) => addMessage(data))
   window.addEventListener('relay:new-message', (e) => addMessage(e.detail))
+
+  // 已配对手机列表（listPaired 仅触发推送，实际数据走 pairedList 事件）
+  window.api.relay.onPairedList((mobiles) => {
+    pairedMobiles.value = Array.isArray(mobiles) ? mobiles : []
+    if (notifyTargetId.value && !pairedMobiles.value.some(m => m.mobileId === notifyTargetId.value)) {
+      notifyTargetId.value = ''
+    }
+  })
+  try { await window.api.relay.listPaired() } catch {}
 
   // 立即检查一下状态
   try {
@@ -440,13 +506,38 @@ onMounted(async () => {
 
 .display-footer { display: flex; justify-content: center; gap: 12px; padding: 14px 24px; border-top: var(--border-soft); position: relative; z-index: 1; background: linear-gradient(0deg, rgba(0,0,0,0.15), transparent); }
 
-/* ============ 测试区 ============ */
-.test-area { padding: 16px; }
-.test-area .col-header { margin-bottom: 12px; }
-.test-area h3 { font-size: 13px; color: #fff; font-weight: bold; }
-.test-row { display: flex; gap: 10px; align-items: center; }
-.test-row input:nth-child(1) { flex: 1; }
-.test-sender { width: 140px; }
+/* ============ 给手机发消息 ============ */
+.notify-area { padding: 16px; }
+.notify-area .col-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.notify-area h3 { font-size: 13px; color: #fff; font-weight: bold; }
+.notify-empty {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 22px 0; font-size: 12px; color: var(--text-sub);
+}
+.notify-empty .ne-icon { font-size: 22px; opacity: 0.6; }
+.notify-targets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.target-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border-radius: var(--radius-pill);
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-strong);
+  color: var(--text-sub); font-size: 12px; cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+}
+.target-chip:hover { border-color: rgba(0,212,255,0.4); color: var(--text-main); }
+.target-chip.active {
+  background: linear-gradient(135deg, rgba(0,212,255,0.18), rgba(124,58,237,0.18));
+  border-color: var(--accent); color: #fff;
+  box-shadow: 0 0 14px rgba(0,212,255,0.25);
+}
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+.chip-dot.active { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
+.chip-dot.standby { background: #3aa0ff; box-shadow: 0 0 6px #3aa0ff; }
+.chip-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-state { font-size: 10px; opacity: 0.7; }
+.notify-row { display: flex; gap: 10px; align-items: center; }
+.notify-row input { flex: 1; }
+.notify-row .primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ============ 通用 ============ */
 .btn-danger { border-color: var(--danger); color: var(--danger); background: rgba(255,102,102,0.08); border-radius: var(--radius-pill); padding: 9px 18px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }

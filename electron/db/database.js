@@ -55,46 +55,57 @@ class AppDatabase {
       );
     `)
 
-    // 迁移：给旧库加新列
-    this.migrate()
-    this.save()
+    // 迁移：给旧库加新列（dirty flag：只有真的改了表才 save）
+    const changed = this.migrate()
+    if (changed) this.save()
   }
 
+  /** 返回是否真的做了 schema 变更 */
   migrate() {
+    let changed = false
+
     // 检查 subjects.grade_id
     const subCols = this.query("PRAGMA table_info(subjects)")
     if (!subCols.find(c => c.name === 'grade_id')) {
       this.db.run('ALTER TABLE subjects ADD COLUMN grade_id INTEGER')
-      // 旧数据：把 subjects 第一个年级设为默认
       const firstGrade = this.query('SELECT id FROM grades ORDER BY sort_order LIMIT 1')
       if (firstGrade[0]) this.db.run('UPDATE subjects SET grade_id=?', [firstGrade[0].id])
+      changed = true
     }
 
     // 检查 students.weight
     const stuCols = this.query("PRAGMA table_info(students)")
     if (!stuCols.find(c => c.name === 'weight')) {
       this.db.run('ALTER TABLE students ADD COLUMN weight INTEGER DEFAULT 1')
+      changed = true
     }
     if (!stuCols.find(c => c.name === 'last_drawn')) {
       this.db.run('ALTER TABLE students ADD COLUMN last_drawn TEXT')
+      changed = true
     }
 
     // 检查 questions.weight / unit / category
     const qCols = this.query("PRAGMA table_info(questions)")
     if (!qCols.find(c => c.name === 'weight')) {
       this.db.run('ALTER TABLE questions ADD COLUMN weight INTEGER DEFAULT 1')
+      changed = true
     }
     if (!qCols.find(c => c.name === 'unit')) {
       this.db.run("ALTER TABLE questions ADD COLUMN unit TEXT DEFAULT ''")
+      changed = true
     }
     if (!qCols.find(c => c.name === 'category')) {
       this.db.run("ALTER TABLE questions ADD COLUMN category TEXT DEFAULT 'recit'")
+      changed = true
     }
 
     // 检查 students.cooldown
     if (!stuCols.find(c => c.name === 'cooldown')) {
       this.db.run('ALTER TABLE students ADD COLUMN cooldown INTEGER DEFAULT 0')
+      changed = true
     }
+
+    return changed
   }
 
   save() {

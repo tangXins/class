@@ -78,10 +78,29 @@ contextBridge.exposeInMainWorld('api', {
     onPairCode: (cb) => ipcRenderer.on('relay:pairCode', (_e, d) => cb(d)),
     onError: (cb) => ipcRenderer.on('relay:error', (_e, d) => cb(d)),
     onServerError: (cb) => ipcRenderer.on('relay:serverError', (_e, d) => cb(d)),
-    onReconnectFailed: (cb) => ipcRenderer.on('relay:reconnectFailed', cb),
+    onMobileOnline: (cb) => ipcRenderer.on('relay:mobileOnline', (_e, d) => cb(d)),
+    onMobileOffline: (cb) => ipcRenderer.on('relay:mobileOffline', (_e, d) => cb(d)),
+    onNotifyResult: (cb) => ipcRenderer.on('relay:notifyResult', (_e, d) => cb(d)),
     onPairedMobile: (cb) => ipcRenderer.on('relay:pairedMobile', (_e, d) => cb(d)),
     onPairedList: (cb) => ipcRenderer.on('relay:pairedList', (_e, d) => cb(d)),
-    onUnpairedMobile: (cb) => ipcRenderer.on('relay:unpairedMobile', (_e, d) => cb(d))
+    onUnpairedMobile: (cb) => ipcRenderer.on('relay:unpairedMobile', (_e, d) => cb(d)),
+    onDataChanged: (cb) => ipcRenderer.on('relay:dataChanged', (_e, d) => cb(d))
+  },
+
+  // ============ 应用更新（GitHub Releases） ============
+  updater: {
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: (url) => ipcRenderer.invoke('updater:download', url),
+    install: (filePath) => ipcRenderer.invoke('updater:install', filePath),
+    openExternal: (url) => ipcRenderer.invoke('updater:openExternal', url),
+    onProgress: (cb) => ipcRenderer.on('updater:progress', (_e, d) => cb(d)),
+    onAvailable: (cb) => ipcRenderer.on('updater:available', (_e, d) => cb(d))
+  },
+
+  // ============ PC → 手机通知/连接请求 ============
+  notify: {
+    send: (mobileId, title, body) =>
+      ipcRenderer.invoke('notify:send', { mobileId, title, body })
   },
 
   // ============ 设置 ============

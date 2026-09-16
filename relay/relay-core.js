@@ -16,21 +16,38 @@
  *                heartbeat / refreshCode
  *                grantMobile  { mobileId, sender, joinedAt }   增量授权（兜底）
  *                revokeMobile { mobileId }                     吊销
+ *                notifyMobile { mobileId, title, body }        给已配对手机发消息/连接请求
+ *                callResult   { mobileId, reqId, ok, data, error }  应答手机数据请求
+ *                dataBroadcast { ...msg }                      向教室内所有手机广播
  *   host   ← registered { deviceId, name, pairCode }
  *                code { pairCode }
  *                mobilePaired   { mobile:{mobileId,sender,joinedAt} }
  *                mobileUnpaired { mobileId }
+ *                mobileOnline   { mobileId, sender, state:'active'|'standby' }
+ *                mobileOffline  { mobileId }
+ *                notifyResult   { mobileId, delivered, state }
  *                message { mobileId, sender, content }
  *
  *   手机    → list
- *                verify { hostDeviceId, mobileId, pairCode? }
- *                join   { hostDeviceId, mobileId, sender, pairCode?, content? }
- *                unpair { hostDeviceId, mobileId }
+ *                verify  { hostDeviceId, mobileId, pairCode? }
+ *                join    { hostDeviceId, mobileId, sender, pairCode?, content?, persist? }
+ *                standby { hostDeviceId, mobileId, sender }   App 后台待命（仅已授权）
+ *                unpair  { hostDeviceId, mobileId }
+ *                call    { reqId, method, params }           数据请求（班级管理 CRUD）
  *   手机    ← list { rooms:[{name,deviceId,online}] }
  *                verifyOk { room, paired }
- *                joinOk   { room }
+ *                joinOk   { room, temporary? }
+ *                standbyOk{ room }
+ *                notify   { hostDeviceId, hostName, title, body }   待命时收到连接请求
+ *                callResult { reqId, ok, data, error }
+ *                dataPush { ...msg }                          主机向教室内手机广播
  *                revoked  { hostDeviceId }   被 PC 移除授权
  *                error    { msg, needPair? }
+ *
+ *   手机三种形态：
+ *     active    —— 已进入教室（join 成功），可收发消息
+ *     standby   —— App 后台待命（仅已授权手机），只收 notify 连接请求
+ *     temporary —— 浏览器临时加入（persist=false），不写授权名单，关闭即失效
  */
 
 const WebSocket = require('ws')
@@ -103,6 +120,59 @@ function createRelayServer(opts = {}) {
       if (client.role === 'mobile' && client.mobileId === mobileId) {
         try { client.send(json({ type: 'revoked', hostDeviceId })) } catch {}
         setTimeout(() => { try { client.close() } catch {} }, 200)
+      }
+    }
+  }
+
+  /** 安全地向 host 推送事件 */
+  function notifyHost(room, obj) {
+    if (room && room.ws) { try { room.ws.send(json(obj)) } catch {} }
+  }
+
+  /** 查询某授权手机当前状态：active / standby / offline */
+  function mobileState(room, mobileId) {
+    if (room.active.has(mobileId)) return 'active'
+    if (room.standby.has(mobileId)) return 'standby'
+    return 'offline'
+  }
+
+  /** 按 mobileId 找到当前连接（active 的 ws / standby、temporary 的 entry.ws） */
+  function findMobileWs(room, mobileId) {
+    const active = room.active.get(mobileId)
+    if (active) return active
+    const standby = room.standby.get(mobileId)
+    if (standby) return standby.ws
+    const temp = room.temporary.get(mobileId)
+    if (temp) return temp.ws
+    return null
+  }
+
+  /**
+   * PC 重连/重新 register 后，新 room 会替换旧 room。
+   * 把仍然连着的手机连接重新挂到新 room（standby / active / temporary），
+   * 并向 host 补发 mobileOnline。
+   */
+  function relinkMobiles(room) {
+    if (!wss) return
+    for (const client of wss.clients) {
+      if (client.role !== 'mobile' || client.hostDeviceId !== room.deviceId) continue
+      if (client.tempSession) {
+        room.temporary.set(client.mobileId, { mobileId: client.mobileId, sender: client.mobileSender || '手机', ws: client })
+        continue
+      }
+      if (!room.authorized.has(client.mobileId)) {
+        // 授权名单已不含它 → 踢掉
+        try { client.send(json({ type: 'revoked', hostDeviceId: room.deviceId })) } catch {}
+        setTimeout(() => { try { client.close() } catch {} }, 200)
+        continue
+      }
+      const sender = client.mobileSender || room.authorized.get(client.mobileId)?.sender || '手机'
+      if (client.inActive) {
+        room.active.set(client.mobileId, client)
+        notifyHost(room, { type: 'mobileOnline', mobileId: client.mobileId, sender, state: 'active' })
+      } else {
+        room.standby.set(client.mobileId, { mobileId: client.mobileId, sender, ws: client })
+        notifyHost(room, { type: 'mobileOnline', mobileId: client.mobileId, sender, state: 'standby' })
       }
     }
   }
@@ -195,11 +265,15 @@ WebSocket: ws://${req.headers.host}/relay
                 pairCode: genPairCode(),
                 ws,
                 lastHeartbeat: Date.now(),
-                authorized
+                authorized,
+                active: new Map(),    // mobileId -> ws（已进教室）
+                standby: new Map(),   // mobileId -> {mobileId,sender,ws}（App 后台待命）
+                temporary: new Map()  // mobileId -> {mobileId,sender,ws}（浏览器临时）
               })
               ws.deviceId = deviceId
               ws.role = 'host'
               const room = rooms.get(deviceId)
+              relinkMobiles(room)
               log(`[relay-register] ${room.name} (${deviceId}) 授权手机=${authorized.size} code=${room.pairCode}`)
               ws.send(json({ type: 'registered', deviceId, name: room.name, pairCode: room.pairCode }))
               broadcastList()
@@ -242,14 +316,83 @@ WebSocket: ws://${req.headers.host}/relay
               break
             }
 
-            // 兼容：PC 查询当前服务器内授权名单（真实数据源在 PC 本地）
+            // PC 查询授权名单 + 在线状态（真实数据源在 PC 本地）
             case 'listPaired': {
               const room = rooms.get(ws.deviceId)
               if (!room) return
               ws.send(json({
                 type: 'pairedList',
-                mobiles: Array.from(room.authorized.values())
+                mobiles: Array.from(room.authorized.values()).map(m => ({
+                  ...m,
+                  state: mobileState(room, m.mobileId)
+                }))
               }))
+              break
+            }
+
+            // PC 给已配对手机发消息/连接请求：在线就转发，不在线返回 offline
+            case 'notifyMobile': {
+              const room = rooms.get(ws.deviceId)
+              if (!room) return
+              const { mobileId, title, body } = msg
+              if (!mobileId) return ws.send(json({ type: 'notifyResult', delivered: false, state: 'offline' }))
+
+              const activeWs = room.active.get(mobileId)
+              if (activeWs) {
+                try {
+                  activeWs.send(json({ type: 'message', mobileId, sender: room.name, title: title || '', content: body || '' }))
+                } catch {}
+                return ws.send(json({ type: 'notifyResult', mobileId, delivered: true, state: 'active' }))
+              }
+
+              const standbyEntry = room.standby.get(mobileId)
+              if (standbyEntry) {
+                try {
+                  standbyEntry.ws.send(json({
+                    type: 'notify',
+                    hostDeviceId: room.deviceId,
+                    hostName: room.name,
+                    title: title || '连接请求',
+                    body: body || ''
+                  }))
+                } catch {}
+                log(`[relay-notify] ${room.name} → ${standbyEntry.sender} (${mobileId.slice(0, 8)})`)
+                return ws.send(json({ type: 'notifyResult', mobileId, delivered: true, state: 'standby' }))
+              }
+
+              ws.send(json({ type: 'notifyResult', mobileId, delivered: false, state: 'offline' }))
+              break
+            }
+
+            // 主机应答手机的数据请求：转发给指定手机
+            case 'callResult': {
+              const room = rooms.get(ws.deviceId)
+              if (!room) return
+              const target = findMobileWs(room, msg.mobileId)
+              if (target) {
+                try {
+                  target.send(json({
+                    type: 'callResult',
+                    reqId: msg.reqId,
+                    ok: !!msg.ok,
+                    data: msg.data,
+                    error: msg.error
+                  }))
+                } catch {}
+              }
+              break
+            }
+
+            // 主机向教室内所有手机广播（数据变更通知等）
+            case 'dataBroadcast': {
+              const room = rooms.get(ws.deviceId)
+              if (!room) return
+              const payload = json({ type: 'dataPush', ...(msg.msg || {}) })
+              for (const client of wss.clients) {
+                if (client.role === 'mobile' && client.hostDeviceId === room.deviceId) {
+                  try { client.send(payload) } catch {}
+                }
+              }
               break
             }
 
@@ -287,44 +430,101 @@ WebSocket: ws://${req.headers.host}/relay
             }
 
             case 'join': {
-              const { hostDeviceId, mobileId, sender, pairCode, content } = msg
+              const { hostDeviceId, mobileId, sender, pairCode, content, persist } = msg
               const room = rooms.get(hostDeviceId)
               if (!room) return ws.send(json({ type: 'error', msg: '教室不在线' }))
               if (!mobileId) return ws.send(json({ type: 'error', msg: '缺少设备标识' }))
 
               ws.role = 'mobile'
               ws.mobileId = mobileId
+              ws.hostDeviceId = hostDeviceId
+              ws.mobileSender = sender || '手机'
 
               let record = room.authorized.get(mobileId)
+              let isTemporary = false
 
-              // 未授权 → 必须用当前配对码完成首次配对
-              if (!record) {
+              if (record) {
+                // 已授权手机回归（App 点教室进入 / 接受连接请求）
+                if (sender) record.sender = sender
+              } else if (persist === false) {
+                // 浏览器临时使用：配对码正确就放行，但不写授权名单
                 if (!pairCode || room.pairCode !== pairCode) {
                   return ws.send(json({ type: 'error', msg: '需要配对码', needPair: true }))
                 }
-                record = { mobileId, sender: sender || '手机', joinedAt: Date.now() }
+                isTemporary = true
+                ws.tempSession = true
+                room.temporary.set(mobileId, { mobileId, sender: sender || '手机', ws })
+                log(`[relay-temp-join] ${room.name} ← ${sender || '手机'} (${mobileId.slice(0, 8)})`)
+              } else {
+                // App 首次配对：必须用当前配对码，成功后永久授权
+                if (!pairCode || room.pairCode !== pairCode) {
+                  return ws.send(json({ type: 'error', msg: '需要配对码', needPair: true }))
+                }
+                record = { mobileId, sender: sender || '手机', joinedAt: Date.now(), persist: true }
                 room.authorized.set(mobileId, record)
                 log(`[relay-paired] ${room.name} ← ${record.sender} (${mobileId.slice(0, 8)})`)
-                try {
-                  room.ws.send(json({ type: 'mobilePaired', mobile: record }))
-                } catch {}
+                notifyHost(room, { type: 'mobilePaired', mobile: record })
                 broadcastList()
-              } else if (sender && !record.sender) {
-                record.sender = sender
               }
+
+              // 标记为 active（从 standby 进入教室）
+              ws.inActive = true
+              room.active.set(mobileId, ws)
+              room.standby.delete(mobileId)
+              room.ws && notifyHost(room, {
+                type: 'mobileOnline',
+                mobileId,
+                sender: sender || record?.sender || '手机',
+                state: 'active'
+              })
 
               if (content) {
-                try {
-                  room.ws.send(json({
-                    type: 'message',
-                    mobileId,
-                    sender: sender || record.sender || '手机',
-                    content
-                  }))
-                } catch {}
+                notifyHost(room, {
+                  type: 'message',
+                  mobileId,
+                  sender: sender || record?.sender || '手机',
+                  content
+                })
               }
 
-              ws.send(json({ type: 'joinOk', room: { name: room.name, hostDeviceId } }))
+              ws.send(json({
+                type: 'joinOk',
+                room: { name: room.name, hostDeviceId },
+                temporary: isTemporary
+              }))
+              break
+            }
+
+            // App 后台待命：仅已授权手机可挂，只收 notify 连接请求
+            case 'standby': {
+              const { hostDeviceId, mobileId, sender } = msg
+              const room = rooms.get(hostDeviceId)
+              if (!room) return ws.send(json({ type: 'error', msg: '教室不在线' }))
+              if (!mobileId) return ws.send(json({ type: 'error', msg: '缺少设备标识' }))
+              if (!room.authorized.has(mobileId)) {
+                return ws.send(json({ type: 'error', msg: '尚未配对，请扫码配对', needPair: true }))
+              }
+
+              ws.role = 'mobile'
+              ws.mobileId = mobileId
+              ws.hostDeviceId = hostDeviceId
+              ws.mobileSender = sender || room.authorized.get(mobileId).sender || '手机'
+              ws.inActive = false
+
+              // 已在教室内（active）则保持 active，不降级
+              if (room.active.has(mobileId)) {
+                ws.inActive = true
+                return ws.send(json({ type: 'standbyOk', room: { name: room.name, hostDeviceId } }))
+              }
+
+              room.standby.set(mobileId, {
+                mobileId,
+                sender: ws.mobileSender,
+                ws
+              })
+              notifyHost(room, { type: 'mobileOnline', mobileId, sender: ws.mobileSender, state: 'standby' })
+              log(`[relay-standby] ${room.name} ← ${ws.mobileSender} (${mobileId.slice(0, 8)})`)
+              ws.send(json({ type: 'standbyOk', room: { name: room.name, hostDeviceId } }))
               break
             }
 
@@ -340,6 +540,26 @@ WebSocket: ws://${req.headers.host}/relay
               break
             }
 
+            // 手机发起数据请求（班级管理 CRUD / 教材目录等）→ 转发主机
+            case 'call': {
+              const room = ws.hostDeviceId ? rooms.get(ws.hostDeviceId) : null
+              const fail = (err) => ws.send(json({ type: 'callResult', reqId: msg.reqId, ok: false, error: err }))
+              if (!room) return fail('教室不在线')
+              const linked = room.active.has(ws.mobileId)
+                || room.temporary.has(ws.mobileId)
+                || room.authorized.has(ws.mobileId)
+              if (!linked) return fail('未连接教室')
+              notifyHost(room, {
+                type: 'call',
+                reqId: msg.reqId,
+                mobileId: ws.mobileId,
+                sender: ws.mobileSender || '手机',
+                method: String(msg.method || ''),
+                params: Array.isArray(msg.params) ? msg.params : []
+              })
+              break
+            }
+
             default:
               ws.send(json({ type: 'error', msg: `未知消息类型: ${msg.type}` }))
           }
@@ -351,6 +571,16 @@ WebSocket: ws://${req.headers.host}/relay
             if (room) log(`[relay-host-close] ${room.name} (${ws.deviceId})`)
             rooms.delete(ws.deviceId)
             broadcastList()
+          } else if (ws.role === 'mobile' && ws.hostDeviceId) {
+            const room = rooms.get(ws.hostDeviceId)
+            if (!room) return
+            const wasLinked = room.active.has(ws.mobileId) || room.standby.has(ws.mobileId)
+            room.active.delete(ws.mobileId)
+            room.standby.delete(ws.mobileId)
+            room.temporary.delete(ws.mobileId)
+            if (wasLinked && room.authorized.has(ws.mobileId)) {
+              notifyHost(room, { type: 'mobileOffline', mobileId: ws.mobileId })
+            }
           }
         })
 

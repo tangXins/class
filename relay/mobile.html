@@ -2,417 +2,646 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<meta name="theme-color" content="#0d0d18">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b16">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>班级管理大师 · 手机端</title>
 <style>
   :root {
-    --bg: #0d0d18;
-    --bg2: #161628;
-    --card: rgba(35,35,58,0.85);
+    --bg: #0b0b16;
+    --bg2: #14142a;
+    --card: rgba(30,30,54,0.82);
+    --card-solid: #1b1b34;
+    --line: rgba(255,255,255,0.08);
     --accent: #00d4ff;
     --accent2: #7c3aed;
-    --accent-gradient: linear-gradient(135deg, var(--accent), var(--accent2));
-    --text: #e8e8f0;
-    --text-dim: #888899;
-    --danger: #ff4757;
-    --radius: 14px;
+    --accent-gradient: linear-gradient(135deg,#00d4ff,#7c3aed);
+    --text: #e9eaf4;
+    --text-dim: #8a8aa3;
+    --danger: #ff4d6d;
+    --success: #00e08a;
+    --warning: #ffb020;
+    --radius: 16px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "微软雅黑", sans-serif; min-height: 100vh; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "微软雅黑", sans-serif;
+    -webkit-font-smoothing: antialiased; }
   body {
-    background: radial-gradient(1200px 600px at -10% -20%, rgba(124,58,237,0.25), transparent 60%),
-                radial-gradient(800px 500px at 110% 10%, rgba(0,212,255,0.2), transparent 55%),
-                var(--bg);
-    padding: 16px;
-    padding-bottom: 100px;
+    background:
+      radial-gradient(900px 480px at -15% -10%, rgba(124,58,237,0.28), transparent 60%),
+      radial-gradient(700px 420px at 115% 0%, rgba(0,212,255,0.20), transparent 55%),
+      var(--bg);
+    min-height: 100dvh;
   }
-  .header { text-align: center; padding: 24px 0 16px; }
-  .header h1 { font-size: 22px; margin: 0; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
-  .header p { color: var(--text-dim); font-size: 13px; margin: 4px 0 0; }
+  button { font-family: inherit; }
 
-  .rooms-section { margin-top: 12px; }
-  .section-title { font-size: 13px; color: var(--text-dim); margin-bottom: 8px; padding-left: 4px; }
+  /* ============ App 框架 ============ */
+  #app { max-width: 540px; margin: 0 auto; min-height: 100dvh; position: relative;
+    padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+
+  .appbar {
+    position: sticky; top: 0; z-index: 40;
+    display: flex; align-items: center; gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: rgba(11,11,22,0.82); backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--line);
+  }
+  .appbar-title { font-size: 17px; font-weight: 700; letter-spacing: 1px;
+    background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .appbar-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; max-width: 130px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conn-chip { margin-left: auto; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--text-dim);
+    background: var(--card); border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 999px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .dot.off { background: var(--text-dim); box-shadow: none; }
+
+  .page { display: none; padding: 14px 14px 24px; animation: fadeUp .25s ease; }
+  .page.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ============ 通用卡片/按钮/输入 ============ */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 12px; backdrop-filter: blur(10px); }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card-title .count { font-size: 11px; color: var(--accent); background: rgba(0,212,255,.12);
+    border: 1px solid rgba(0,212,255,.3); padding: 1px 8px; border-radius: 999px; font-weight: 400; }
+  .card-title .sp { margin-left: auto; }
+  .btn { border: none; border-radius: 12px; padding: 11px 16px; font-size: 14px; font-weight: 600; cursor: pointer; color: #fff;
+    background: var(--card-solid); border: 1px solid var(--line); transition: transform .12s; }
+  .btn:active { transform: scale(.96); }
+  .btn-primary { background: var(--accent-gradient); border: none; box-shadow: 0 6px 20px rgba(124,58,237,.4); }
+  .btn-ghost { background: rgba(255,255,255,.06); }
+  .btn-danger { background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.4); color: #ff8fa3; }
+  .btn-block { width: 100%; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 9px; }
+  .ipt, select.ipt, textarea.ipt {
+    width: 100%; background: rgba(0,0,0,.32); border: 1px solid var(--line);
+    border-radius: 10px; padding: 11px 13px; color: var(--text); font-size: 14px; outline: none;
+  }
+  .ipt:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,.14); }
+  textarea.ipt { resize: none; font-family: inherit; }
+  .field { margin-bottom: 12px; }
+  .field > label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+  .empty { text-align: center; padding: 34px 18px; color: var(--text-dim); font-size: 13px; }
+  .empty .ico { font-size: 42px; display: block; margin-bottom: 10px; opacity: .75; }
+  .empty .tip { font-size: 11px; opacity: .7; margin-top: 8px; line-height: 1.7; }
+
+  /* ============ 底部 Tab ============ */
+  .tabbar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 540px; z-index: 50;
+    display: flex; background: rgba(10,10,22,.92); backdrop-filter: blur(20px);
+    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab { flex: 1; padding: 9px 0 8px; text-align: center; font-size: 11px; color: var(--text-dim); cursor: pointer; position: relative; }
+  .tab .ti { font-size: 21px; display: block; line-height: 1.2; filter: grayscale(.4); transition: transform .2s; }
+  .tab.active { color: var(--accent); }
+  .tab.active .ti { transform: translateY(-1px) scale(1.08); filter: none; }
+  .tab .badge {
+    position: absolute; top: 3px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px;
+    background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; line-height: 16px; font-weight: 700;
+  }
+
+  /* ============ 入口（未进教室） ============ */
+  #gate { padding: calc(26px + env(safe-area-inset-top)) 18px 40px; }
+  .brand { text-align: center; margin: 18px 0 26px; }
+  .brand-logo { width: 76px; height: 76px; margin: 0 auto 14px; border-radius: 22px;
+    background: var(--accent-gradient); display: flex; align-items: center; justify-content: center;
+    font-size: 38px; box-shadow: 0 12px 36px rgba(0,212,255,.35); }
+  .brand h1 { margin: 0; font-size: 23px; letter-spacing: 3px;
+    background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .brand p { margin: 8px 0 0; font-size: 12px; color: var(--text-dim); }
+  .gate-status { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 14px; }
   .room-card {
-    background: var(--card);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    cursor: pointer;
-    transition: transform 0.15s, border-color 0.15s;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer;
+    transition: transform .15s, border-color .15s;
   }
-  .room-card:active { transform: scale(0.98); border-color: rgba(0,212,255,0.5); }
-  .room-card.offline { opacity: 0.55; }
-  .room-avatar {
-    width: 48px; height: 48px; border-radius: 12px;
-    background: var(--accent-gradient);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px; flex-shrink: 0;
-    box-shadow: 0 4px 16px rgba(0,212,255,0.3);
-  }
+  .room-card:active { transform: scale(.98); border-color: rgba(0,212,255,.5); }
+  .room-card.offline { opacity: .5; }
+  .room-avatar { width: 46px; height: 46px; border-radius: 13px; background: var(--accent-gradient);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(0,212,255,.28); }
   .room-info { flex: 1; min-width: 0; }
-  .room-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-  .room-meta { font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 8px; }
-  .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #00ff88; display: inline-block; box-shadow: 0 0 8px #00ff88; }
-  .offline-dot { background: var(--text-dim); box-shadow: none; }
-
-  .pinned-tag {
-    font-size: 11px; padding: 2px 8px; border-radius: 8px;
-    background: rgba(124,58,237,0.2); color: #b794ff;
-    border: 1px solid rgba(124,58,237,0.4);
+  .room-name { font-size: 15px; font-weight: 600; }
+  .room-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+  .online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 7px var(--success); }
+  .online-dot.off { background: var(--text-dim); box-shadow: none; }
+  .scan-btn {
+    width: 100%; padding: 17px; border-radius: var(--radius); cursor: pointer;
+    border: 2px dashed rgba(0,212,255,.45); background: rgba(0,212,255,.06);
+    color: var(--accent); font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 9px;
   }
-  .connect-tag {
-    font-size: 11px; padding: 2px 8px; border-radius: 8px;
-    background: rgba(0,212,255,0.15); color: var(--accent);
-    border: 1px solid rgba(0,212,255,0.35);
-  }
+  .scan-btn:active { background: rgba(0,212,255,.15); }
+  .gate-note { margin-top: 22px; font-size: 11px; line-height: 1.8; color: var(--text-dim);
+    border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
 
-  .rooms-actions { display: flex; gap: 8px; margin-top: 8px; }
-  .btn {
-    flex: 1; padding: 12px 16px; border-radius: var(--radius); border: none;
-    font-size: 15px; font-weight: 500; cursor: pointer;
+  /* ============ 顶部通知横幅（不打断、不全屏） ============ */
+  .banner {
+    position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%;
+    transform: translate(-50%, -140%);
+    width: calc(100% - 24px); max-width: 516px; z-index: 60; cursor: pointer;
+    background: linear-gradient(120deg, rgba(0,90,120,.92), rgba(60,30,120,.92));
+    border: 1px solid rgba(0,212,255,.5); border-radius: 14px; padding: 11px 14px;
+    display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 34px rgba(0,0,0,.5);
+    backdrop-filter: blur(16px); transition: transform .35s cubic-bezier(.2,.9,.3,1.2);
   }
-  .btn-primary { background: var(--accent-gradient); color: white; box-shadow: 0 4px 16px rgba(124,58,237,0.4); }
-  .btn-secondary { background: var(--card); color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
-  .btn:active { transform: scale(0.97); }
+  .banner.show { transform: translate(-50%, 0); }
+  .banner .b-ico { font-size: 20px; }
+  .banner .b-txt { flex: 1; min-width: 0; }
+  .banner .b-title { font-size: 12px; color: var(--accent); font-weight: 700; }
+  .banner .b-body { font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
-  .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.6; }
-  .empty-tip { font-size: 12px; opacity: 0.7; margin-top: 8px; line-height: 1.6; }
+  /* ============ 消息页 ============ */
+  .chat { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+  .bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6;
+    word-break: break-word; white-space: pre-wrap; position: relative; }
+  .bubble .b-sender { font-size: 11px; color: var(--accent); margin-bottom: 3px; font-weight: 600; }
+  .bubble .b-time { font-size: 10px; color: var(--text-dim); margin-top: 4px; text-align: right; }
+  .bubble.in { align-self: flex-start; background: var(--card); border: 1px solid var(--line);
+    border-top-left-radius: 4px; }
+  .bubble.in .b-time { text-align: left; }
+  .bubble.me { align-self: flex-end; background: var(--accent-gradient); color: #fff;
+    border-top-right-radius: 4px; box-shadow: 0 6px 18px rgba(124,58,237,.35); }
+  .bubble.me .b-time { color: rgba(255,255,255,.75); }
+  .bubble.sys { align-self: center; background: none; color: var(--text-dim); font-size: 11px; padding: 0; }
+  .composer { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px; }
+  .quick-tags { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+  .quick-tags::-webkit-scrollbar { display: none; }
+  .quick-tag { flex-shrink: 0; padding: 5px 13px; border-radius: 999px; font-size: 12px;
+    background: rgba(255,255,255,.07); border: 1px solid var(--line); cursor: pointer; }
+  .quick-tag:active { border-color: var(--accent); color: var(--accent); }
+  .composer-row { display: flex; gap: 8px; align-items: flex-end; }
+  .composer-row textarea { flex: 1; min-height: 42px; max-height: 110px; }
 
-  /* ========= 发送页 ========= */
-  .send-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .back-btn {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
-    color: var(--text); font-size: 18px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .send-title { flex: 1; font-size: 16px; font-weight: 600; }
+  /* ============ 班级管理 ============ */
+  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip { flex-shrink: 0; padding: 7px 15px; border-radius: 999px; font-size: 13px; cursor: pointer;
+    background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .chip.sel { background: var(--accent-gradient); border-color: transparent; color: #fff; font-weight: 600;
+    box-shadow: 0 4px 14px rgba(0,212,255,.3); }
+  .chip .x { opacity: .55; font-size: 12px; padding: 0 2px; }
+  .chip-add { flex-shrink: 0; border-style: dashed; color: var(--accent); border-color: rgba(0,212,255,.4); }
+  .list-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.05); min-width: 0; }
+  .list-row:last-child { border-bottom: none; }
+  .row-avatar { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #fff; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .row-acts { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--line);
+    background: rgba(255,255,255,.05); color: var(--text); font-size: 14px; cursor: pointer; }
+  .icon-btn:active { transform: scale(.9); }
+  .icon-btn.danger { color: #ff8fa3; border-color: rgba(255,77,109,.35); background: rgba(255,77,109,.1); }
+  .loading { text-align: center; color: var(--text-dim); font-size: 12px; padding: 22px; }
 
-  .target-card {
-    background: var(--card); border-radius: var(--radius);
-    padding: 14px; margin-bottom: 16px;
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .target-label { font-size: 12px; color: var(--text-dim); }
-  .target-name { font-size: 18px; font-weight: 600; margin-top: 4px; }
+  /* ============ 教材目录 ============ */
+  .cat-unit { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .cat-unit-head { padding: 11px 14px; font-size: 13px; font-weight: 600; background: rgba(255,255,255,.04);
+    display: flex; align-items: center; gap: 8px; }
+  .cat-q { padding: 11px 14px; font-size: 13px; border-top: 1px solid rgba(255,255,255,.05); cursor: pointer;
+    display: flex; align-items: center; gap: 8px; }
+  .cat-q:active { background: rgba(0,212,255,.08); }
+  .cat-q .qt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cat-q .arrow { color: var(--text-dim); font-size: 12px; }
+  .article-content { font-size: 14px; line-height: 1.9; white-space: pre-wrap; word-break: break-word;
+    max-height: 55dvh; overflow-y: auto; background: rgba(0,0,0,.28); border-radius: 12px; padding: 14px; }
 
-  textarea.msg-input {
-    width: 100%; min-height: 140px; padding: 14px;
-    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: var(--radius); color: var(--text); font-size: 16px;
-    resize: none; font-family: inherit;
-    outline: none;
-  }
-  textarea.msg-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.15); }
+  /* ============ 我的 ============ */
+  .me-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .me-avatar { width: 58px; height: 58px; border-radius: 17px; background: var(--accent-gradient);
+    display: flex; align-items: center; justify-content: center; font-size: 27px;
+    box-shadow: 0 8px 24px rgba(124,58,237,.4); }
+  .me-name { font-size: 17px; font-weight: 700; }
+  .me-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .kv-row { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 13px; }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row .k { color: var(--text-dim); flex-shrink: 0; width: 76px; font-size: 12px; }
+  .kv-row .v { flex: 1; min-width: 0; word-break: break-all; text-align: right; }
+  .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .sl { position: absolute; inset: 0; background: rgba(255,255,255,.15); border-radius: 26px; transition: .25s; cursor: pointer; }
+  .switch .sl::before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .25s; }
+  .switch input:checked + .sl { background: var(--accent); }
+  .switch input:checked + .sl::before { transform: translateX(20px); }
+  details.settings-adv summary { font-size: 13px; color: var(--text-dim); cursor: pointer; padding: 6px 0; }
+  .update-notes { font-size: 12px; line-height: 1.7; color: var(--text-dim); white-space: pre-wrap;
+    max-height: 180px; overflow-y: auto; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
+  .progress-line { height: 6px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 10px; }
+  .progress-line > i { display: block; height: 100%; width: 0; background: var(--accent-gradient); transition: width .3s; }
 
-  .quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-  .quick-tag {
-    padding: 6px 14px; border-radius: 20px; font-size: 13px;
-    background: var(--card); border: 1px solid rgba(255,255,255,0.1);
-    cursor: pointer;
-  }
-  .quick-tag:active { background: rgba(0,212,255,0.15); border-color: var(--accent); }
+  /* ============ 弹窗 / 底部表单 ============ */
+  .mask { position: fixed; inset: 0; background: rgba(0,0,0,.62); backdrop-filter: blur(5px);
+    z-index: 100; display: none; }
+  .mask.show { display: block; }
+  .modal { position: fixed; z-index: 101; left: 50%; top: 50%; transform: translate(-50%,-46%) scale(.92);
+    width: 86%; max-width: 360px; background: var(--bg2); border: 1px solid var(--line); border-radius: 18px;
+    padding: 24px; opacity: 0; pointer-events: none; transition: all .22s; }
+  .modal.show { opacity: 1; pointer-events: auto; transform: translate(-50%,-50%) scale(1); }
+  .modal h3 { margin: 0 0 6px; font-size: 17px; }
+  .modal .m-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+  .pair-input { width: 100%; padding: 14px; font-size: 26px; letter-spacing: 8px; text-align: center;
+    background: rgba(0,0,0,.32); border: 1px solid var(--line); border-radius: 12px;
+    color: var(--accent); font-weight: 700; outline: none; text-transform: uppercase; }
+  .pair-input:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-btns .btn { flex: 1; }
+  .sheet { position: fixed; z-index: 101; left: 50%; bottom: 0; transform: translate(-50%,105%);
+    width: 100%; max-width: 540px; background: var(--bg2); border: 1px solid var(--line);
+    border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+    transition: transform .28s cubic-bezier(.2,.9,.3,1.15); max-height: 88dvh; overflow-y: auto; }
+  .sheet.show { transform: translate(-50%,0); }
+  .sheet h3 { margin: 0 0 16px; font-size: 16px; }
+  .seg2 { display: flex; gap: 8px; }
+  .seg2 .chip { flex: 1; justify-content: center; }
 
-  .send-btn {
-    width: 100%; padding: 16px; border-radius: var(--radius); border: none;
-    background: var(--accent-gradient); color: white; font-size: 17px;
-    font-weight: 600; cursor: pointer;
-    box-shadow: 0 6px 24px rgba(124,58,237,0.5);
-  }
-  .send-btn:active { transform: scale(0.98); }
-  .send-btn.sending { opacity: 0.7; }
-
-  /* ========= Toast ========= */
-  .toast {
-    position: fixed; top: 32px; left: 50%; transform: translateX(-50%) translateY(-20px);
-    background: var(--card); color: var(--text); padding: 12px 24px;
-    border-radius: 24px; backdrop-filter: blur(20px);
-    border: 1px solid rgba(0,212,255,0.3);
-    opacity: 0; transition: all 0.3s; z-index: 9999;
-    font-size: 14px; max-width: 86%; text-align: center;
-  }
+  /* ============ Toast ============ */
+  .toast { position: fixed; top: calc(20px + env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%) translateY(-24px); z-index: 200;
+    background: rgba(28,28,50,.96); border: 1px solid rgba(0,212,255,.35); color: var(--text);
+    padding: 11px 22px; border-radius: 999px; font-size: 13px; max-width: 86%; text-align: center;
+    opacity: 0; transition: all .3s; pointer-events: none; backdrop-filter: blur(14px); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.error { border-color: var(--danger); }
-
-  /* ========= 二维码扫描 ========= */
-  .qr-btn-wrap { margin-top: 16px; }
-  .qr-btn {
-    width: 100%; padding: 18px; border-radius: var(--radius); border: 2px dashed rgba(0,212,255,0.4);
-    background: rgba(0,212,255,0.05); color: var(--accent); font-size: 16px;
-    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-  }
-  .qr-btn:active { background: rgba(0,212,255,0.15); }
-
-  /* ========= 设置 ========= */
-  .settings-card {
-    background: var(--card); border-radius: var(--radius);
-    padding: 14px; margin-top: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-  }
-  .settings-row { display: flex; align-items: center; padding: 10px 4px; gap: 10px; }
-  .settings-row label { font-size: 13px; color: var(--text-dim); flex-shrink: 0; width: 80px; }
-  .settings-row input {
-    flex: 1; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px;
-    outline: none;
-  }
-  .settings-row input:focus { border-color: var(--accent); }
-
-  .tab-bar {
-    position: fixed; bottom: 0; left: 0; right: 0; display: flex;
-    background: rgba(13,13,24,0.95); backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255,255,255,0.08);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .tab { flex: 1; padding: 12px; text-align: center; font-size: 12px; color: var(--text-dim); cursor: pointer; }
-  .tab.active { color: var(--accent); }
-  .tab-icon { font-size: 20px; display: block; margin-bottom: 2px; }
-
-  /* ========= 配对弹窗 ========= */
-  .pair-modal {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
-    display: flex; align-items: center; justify-content: center; z-index: 100;
-    opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  }
-  .pair-modal.show { opacity: 1; pointer-events: all; }
-  .pair-content {
-    background: var(--bg2); border-radius: 18px; padding: 28px; width: 85%; max-width: 340px;
-    border: 1px solid rgba(255,255,255,0.1); text-align: center;
-    transform: scale(0.85); transition: transform 0.2s;
-  }
-  .pair-modal.show .pair-content { transform: scale(1); }
-  .pair-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
-  .pair-input {
-    width: 100%; padding: 16px; font-size: 28px; letter-spacing: 8px; text-align: center;
-    background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; color: var(--accent); font-weight: 600;
-    outline: none; text-transform: uppercase;
-  }
-  .pair-input:focus { border-color: var(--accent); }
-  .pair-btns { display: flex; gap: 10px; margin-top: 20px; }
 </style>
 </head>
 <body>
 
-<!-- ============ 页面 1：教室列表 ============ -->
-<div id="page-list">
-  <div class="header">
-    <h1>班级管理大师</h1>
-    <p id="relayStatus">🔄 初始化中...</p>
-  </div>
+<div id="app">
 
-  <div class="rooms-section">
-    <div class="section-title">📎 我的教室（配对过，点一下直接进）</div>
-    <div id="pinnedRooms"></div>
-  </div>
-
-  <div class="qr-btn-wrap" style="margin-top:24px">
-    <button class="qr-btn" onclick="startScan()">📷 扫描教室二维码（配对新教室）</button>
-  </div>
-
-  <div class="empty" style="margin-top:28px;padding:12px 16px;font-size:12px;line-height:1.8;color:var(--text-dim);border:1px dashed rgba(255,255,255,0.08);border-radius:12px">
-    🔒 你只能看到自己配对过的教室。<br>
-    想进新教室？用手机扫描电脑屏幕上的二维码 → 输入一次配对码即可。
-  </div>
-</div>
-
-<!-- ============ 页面 2：发送消息 ============ -->
-<div id="page-send" style="display:none">
-  <div class="send-header">
-    <button class="back-btn" onclick="goBack()">‹</button>
-    <div class="send-title">发送消息</div>
-  </div>
-  <div class="target-card">
-    <div class="target-label">📌 已连接到</div>
-    <div class="target-name" id="targetName">—</div>
-  </div>
-  <textarea class="msg-input" id="msgInput" placeholder="输入要发送的消息，教室大屏会立即显示并语音播报..." onkeydown="if(event.key==='Enter'&&event.ctrlKey)sendMessage()"></textarea>
-  <div class="quick-tags" id="quickTags"></div>
-  <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
-</div>
-
-<!-- ============ 页面 3：设置 ============ -->
-<div id="page-settings" style="display:none">
-  <div class="header">
-    <h1>⚙️ 设置</h1>
-  </div>
-  <div class="settings-card">
-    <div class="settings-row">
-      <label>服务器</label>
-      <input type="text" id="relayUrlInput" placeholder="wss://your-relay.onrender.com">
+  <!-- ============ 入口：连接教室 ============ -->
+  <div id="gate">
+    <div class="brand">
+      <div class="brand-logo">🎓</div>
+      <h1>班级管理大师</h1>
+      <p id="gateSub">手机端 · 班级管理 / 教材 / 消息</p>
     </div>
-    <div class="settings-row">
-      <label>昵称</label>
-      <input type="text" id="senderInput" placeholder="你的名字（如：学生A）">
+
+    <div id="pinnedWrap">
+      <div style="font-size:12px;color:var(--text-dim);margin:0 2px 8px">📎 我的教室（点击直接进入）</div>
+      <div id="pinnedRooms"></div>
+    </div>
+
+    <button class="scan-btn" onclick="startScan()">📷 扫描教室二维码连接</button>
+    <div class="gate-status" id="relayStatus">🔄 初始化中...</div>
+
+    <div class="gate-note" id="gateNote"></div>
+  </div>
+
+  <!-- ============ 主界面 ============ -->
+  <div id="main" style="display:none">
+    <div class="appbar">
+      <div>
+        <div class="appbar-title" id="barTitle">消息大屏</div>
+        <div class="appbar-sub" id="barSub"></div>
+      </div>
+      <div class="conn-chip"><span class="dot" id="barDot"></span><span id="barState">在线</span></div>
+    </div>
+
+    <!-- 消息 -->
+    <div class="page active" id="page-msg">
+      <div class="chat" id="chatList"></div>
+      <div class="composer">
+        <div class="quick-tags" id="quickTags"></div>
+        <div class="composer-row">
+          <textarea class="ipt" id="msgInput" rows="1" placeholder="发消息到教室大屏…"></textarea>
+          <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 班级管理 -->
+    <div class="page" id="page-class">
+      <div class="card">
+        <div class="card-title">🎓 年级
+          <span class="sp"></span>
+        </div>
+        <div class="chip-row" id="gradeChips"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🏫 班级 <span class="count" id="classCount"></span>
+          <button class="btn btn-sm btn-ghost sp" onclick="editClass()">＋ 新增</button>
+        </div>
+        <div id="classList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">👥 学生 <span class="count" id="studentCount"></span>
+          <button class="btn btn-sm btn-ghost sp" onclick="editStudent()">＋ 新增</button>
+        </div>
+        <div id="studentList"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📚 学科（绑定年级）
+          <button class="btn btn-sm btn-ghost sp" onclick="editSubject()">＋ 新增</button>
+        </div>
+        <div id="subjectList"></div>
+      </div>
+    </div>
+
+    <!-- 教材目录 -->
+    <div class="page" id="page-catalog">
+      <div class="card">
+        <div class="card-title">🎓 年级</div>
+        <div class="chip-row" id="catGradeChips"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📖 学科</div>
+        <div class="chip-row" id="catSubjectChips"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📑 课文目录</div>
+        <div id="catUnits"></div>
+      </div>
+    </div>
+
+    <!-- 我的 -->
+    <div class="page" id="page-me">
+      <div class="card me-head">
+        <div class="me-avatar">👤</div>
+        <div style="flex:1;min-width:0">
+          <div class="me-name" id="meName">手机用户</div>
+          <div class="me-sub" id="meRoom">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label>我的昵称（显示给电脑端）</label>
+          <input class="ipt" id="senderInput" placeholder="如：学生A">
+        </div>
+        <button class="btn btn-primary btn-block btn-sm" onclick="saveSender()">保存昵称</button>
+      </div>
+
+      <div class="card" id="keepAliveCard">
+        <div class="list-row" style="padding:4px 2px">
+          <div style="flex:1">
+            <div style="font-size:13px">🔔 后台保活</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:3px;line-height:1.6">
+              通知栏常驻，锁屏/后台也能收到电脑的连接请求与消息
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="keepAliveInput" onchange="toggleKeepAlive(this.checked)">
+            <span class="sl"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⬆️ 检查更新</div>
+        <div class="kv-row"><span class="k">当前版本</span><span class="v" id="curVersion">—</span></div>
+        <div id="updateResult"></div>
+        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:10px" onclick="checkAppUpdate()">检查更新</button>
+      </div>
+
+      <div class="card">
+        <details class="settings-adv">
+          <summary>⚙️ 高级设置</summary>
+          <div style="margin-top:10px">
+            <div class="field">
+              <label>中继服务器地址</label>
+              <input class="ipt" id="relayUrlInput" placeholder="wss://your-relay.example.com">
+            </div>
+            <button class="btn btn-ghost btn-block btn-sm" onclick="saveRelayUrl()">保存并重新连接</button>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <button class="btn btn-primary btn-block" onclick="leaveRoom()">🚪 离开当前教室</button>
+        <button class="btn btn-danger btn-block" id="unpairBtn" style="margin-top:8px" onclick="unpairCurrent()">解除与该教室的配对</button>
+      </div>
     </div>
   </div>
-  <div class="rooms-actions" style="margin-top:16px">
-    <button class="btn btn-secondary" onclick="saveSettings()">💾 保存并连接</button>
-    <button class="btn btn-secondary" onclick="clearPinned()">🗑️ 清除配对</button>
-  </div>
-  <div class="empty" style="padding:24px 12px;font-size:12px">
-    配对信息只保存在本手机浏览器中，清除浏览器数据会丢失配对。
+
+  <!-- 底部 Tab（JS 渲染：App 4 个，浏览器 2 个） -->
+  <div class="tabbar" id="tabbar"></div>
+</div>
+
+<!-- 新消息顶部横幅 -->
+<div class="banner" id="banner" onclick="openBanner()">
+  <div class="b-ico">📨</div>
+  <div class="b-txt">
+    <div class="b-title" id="bannerTitle">教室消息</div>
+    <div class="b-body" id="bannerBody"></div>
   </div>
 </div>
 
-<!-- ============ 底部 Tab ============ -->
-<div class="tab-bar">
-  <div class="tab active" data-tab="list" onclick="switchTab('list')"><span class="tab-icon">🏠</span>教室</div>
-  <div class="tab" data-tab="settings" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span>设置</div>
+<!-- 配对码弹窗 -->
+<div class="mask" id="pairMask"></div>
+<div class="modal" id="pairModal">
+  <h3 id="pairTitle">🔐 输入配对码</h3>
+  <div class="m-sub">请看教室电脑屏幕上显示的 6 位配对码</div>
+  <input class="pair-input" id="pairCodeInput" maxlength="6" placeholder="------" inputmode="text">
+  <div class="modal-btns">
+    <button class="btn btn-ghost" onclick="closePairModal()">取消</button>
+    <button class="btn btn-primary" onclick="confirmPair()">确认连接</button>
+  </div>
 </div>
 
-<!-- ============ Toast ============ -->
+<!-- 电脑连接请求弹窗（后台待命时） -->
+<div class="mask" id="notifyMask"></div>
+<div class="modal" id="notifyModal">
+  <h3>🔔 电脑请求连接</h3>
+  <div class="m-sub" id="notifyModalHost"></div>
+  <div class="article-content" id="notifyModalBody" style="max-height:30dvh"></div>
+  <div class="modal-btns">
+    <button class="btn btn-ghost" onclick="declineNotify()">稍后</button>
+    <button class="btn btn-primary" onclick="acceptNotify()">🔗 进入教室</button>
+  </div>
+</div>
+
+<!-- 通用底部表单（由 JS 填充） -->
+<div class="mask" id="sheetMask" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet"></div>
+
+<!-- 通用内容弹窗 -->
+<div class="mask" id="infoMask" onclick="closeInfo()"></div>
+<div class="modal" id="infoModal">
+  <h3 id="infoTitle"></h3>
+  <div id="infoBody"></div>
+  <div class="modal-btns"><button class="btn btn-primary" style="flex:1" onclick="closeInfo()">我知道了</button></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<!-- ============ 配对码输入弹窗 ============ -->
-<div class="pair-modal" id="pairModal">
-  <div class="pair-content">
-    <div class="pair-title" id="pairTitle">🔐 输入配对码</div>
-    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">请看教室电脑屏幕上的 6 位配对码</div>
-    <input class="pair-input" id="pairCodeInput" maxlength="6" placeholder="------">
-    <div class="pair-btns">
-      <button class="btn btn-secondary" onclick="closePairModal()">取消</button>
-      <button class="btn btn-primary" onclick="confirmPair()">确认</button>
-    </div>
-  </div>
-</div>
-
 <script>
-// ============ 设备身份：首次访问生成，永久保存 ============
+// ============================================================
+//  运行环境 / 设备身份
+// ============================================================
+const isNative = !!(window.Capacitor &&
+  (window.Capacitor.platform === 'android' || window.Capacitor.platform === 'ios' ||
+   (window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())))
+
+// 网页扫码本就是临时模式：浏览器绝不记忆任何教室（顺带清理历史版本可能写入的数据）
+if (!isNative) { try { localStorage.removeItem('cm_pinned') } catch {} }
+
 function getMobileId() {
   let id = localStorage.getItem('cm_mobile_id')
   if (!id) {
-    if (window.crypto && crypto.randomUUID) {
-      id = crypto.randomUUID().replace(/-/g, '')
-    } else {
-      id = 'm' + Date.now().toString(36) + Math.random().toString(16).slice(2, 14)
-    }
+    id = (crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '')
+      : 'm' + Date.now().toString(36) + Math.random().toString(16).slice(2, 14))
     localStorage.setItem('cm_mobile_id', id)
   }
   return id
 }
+function keepAliveEnabled() { return isNative && localStorage.getItem('cm_keepalive') !== '0' }
 
-// ============ 全局状态 ============
+const DEFAULT_RELAY = 'wss://classmanager-relay.onrender.com'
+const quickMessages = ['老师好！', '准备好了', '请抽我！', '我有问题', '再来一次', '真棒👏', '加油💪']
+
 const state = {
   mobileId: getMobileId(),
   relayUrl: localStorage.getItem('cm_relay') || '',
   sender: localStorage.getItem('cm_sender') || '手机用户',
   ws: null,
   connected: false,
-  // [{deviceId, name, relayUrl, pairedAt}]
-  pinnedHosts: JSON.parse(localStorage.getItem('cm_pinned') || '[]'),
+  pinnedHosts: isNative ? JSON.parse(localStorage.getItem('cm_pinned') || '[]') : [],
   discovered: [],
   currentRoom: null,
-  // 待处理（扫码/点击教室）
+  tab: 'msg',
+  unread: 0,
+  msgs: [],
+  // 班级数据
+  grades: [], classes: [], students: [], subjects: [],
+  selGrade: null, selClass: null,
+  classLoaded: false,
+  // 教材
+  catalog: null,
+  catGrade: null, catSubject: null,
+  catalogLoaded: false,
+  appInfo: null,
+  // 配对流程
   _pendingDeviceId: null,
-  _pendingRoomName: '教室',
   _needPairForDeviceId: null,
   _lastJoinId: null,
   _tempPairCode: '',
-  _failCount: 0
+  _failCount: 0,
+  _lastNotify: null
 }
 
-const quickMessages = ['老师好！', '准备好了', '请抽我！', '我有问题', '再来一次', '真棒👏', '加油💪']
-
-// ============ WebSocket ============
+// ============================================================
+//  WebSocket
+// ============================================================
 function connect() {
   try {
     if (!state.relayUrl) {
-      try {
-        const origin = new URL(location.href).origin
-        state.relayUrl = origin.replace(/^http/, 'ws')
-        localStorage.setItem('cm_relay', state.relayUrl)
-      } catch (e) {
-        updateRelayStatus('❌ 无法确定服务器地址，请在设置里填写', '#ff4757')
-        return
+      if (isNative) {
+        state.relayUrl = DEFAULT_RELAY
+      } else {
+        try { state.relayUrl = new URL(location.href).origin.replace(/^http/, 'ws') }
+        catch { setRelayStatus('❌ 无法确定服务器地址', '#ff4d6d'); return }
       }
+      localStorage.setItem('cm_relay', state.relayUrl)
     }
-
-    // 已存在且开着就不重复连
     if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return
 
     const wsUrl = state.relayUrl.replace(/\/+$/, '').replace(/\/relay$/, '') + '/relay'
-    updateRelayStatus('🔄 正在连接...', '#ffcc00')
-
+    setRelayStatus('🔄 正在连接…', '#ffb020')
     state.ws = new WebSocket(wsUrl)
 
     state.ws.onopen = () => {
       state.connected = true
       state._failCount = 0
-      updateRelayStatus('✅ 已连接', '#00ff88')
+      setRelayStatus('✅ 已连接', '#00e08a')
+      updateBarChip()
       wsSend({ type: 'list' })
-      state._listTimer = setInterval(() => {
-        if (state.connected) wsSend({ type: 'list' })
-      }, 5000)
-
-      // 连接建立后有待进入的教室
+      state._listTimer = setInterval(() => state.connected && wsSend({ type: 'list' }), 5000)
+      if (isNative) syncMainStandby()
       if (state._pendingDeviceId) {
         const id = state._pendingDeviceId
         state._pendingDeviceId = null
-        const pin = state.pinnedHosts.find(p => p.deviceId === id)
-        if (pin) {
-          // 已配对：自带 mobileId，无配对码直连，服务器凭授权名单放行
-          sendJoin(id, '', '')
-        } else {
-          // 未配对：等 list 回来后弹配对码框
-          state._needPairForDeviceId = id
-        }
+        if (state.pinnedHosts.find(p => p.deviceId === id)) sendJoin(id, '', '')
+        else state._needPairForDeviceId = id
       }
     }
-
     state.ws.onmessage = (raw) => {
       let msg
       try { msg = JSON.parse(raw.data) } catch { return }
       onRelayMessage(msg)
     }
-
     state.ws.onclose = () => {
       state.connected = false
       clearInterval(state._listTimer)
+      updateBarChip()
       state._failCount++
-      if (state._failCount <= 2) {
-        updateRelayStatus('🔌 连接断开，重连中...', '#ffcc00')
-      } else {
-        // Render 免费版冷启动约需 30-60 秒
-        updateRelayStatus('☁️ 云端服务启动中，最长等待约 1 分钟...', '#ffcc00')
-      }
+      setRelayStatus(state._failCount <= 2 ? '🔌 断开，重连中…' : '☁️ 云端启动中，最长约 1 分钟…', '#ffb020')
       setTimeout(connect, 3000)
     }
-
-    state.ws.onerror = () => {
-      updateRelayStatus('☁️ 连接中（跨网络首次较慢）...', '#ffcc00')
-    }
+    state.ws.onerror = () => setRelayStatus('☁️ 连接中（首次较慢）…', '#ffb020')
   } catch (e) {
-    updateRelayStatus('❌ 异常: ' + e.message, '#ff4757')
+    setRelayStatus('❌ ' + e.message, '#ff4d6d')
   }
 }
 
-function updateRelayStatus(text, color) {
+function setRelayStatus(text, color) {
   const el = document.getElementById('relayStatus')
   if (el) { el.textContent = text; el.style.color = color || 'var(--text-dim)' }
 }
+function updateBarChip() {
+  const dot = document.getElementById('barDot')
+  const txt = document.getElementById('barState')
+  if (!dot) return
+  dot.classList.toggle('off', !state.connected)
+  txt.textContent = state.connected ? '在线' : '连接中'
+}
 
+function wsSend(obj) {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(obj))
+  else showToast('连接中，请稍候再试', true)
+}
+
+function sendJoin(deviceId, pairCode, content, persist) {
+  state._lastJoinId = deviceId
+  // 浏览器永远临时；App 默认持久配对
+  const doPersist = persist === undefined ? isNative : persist
+  wsSend({
+    type: 'join', hostDeviceId: deviceId, mobileId: state.mobileId,
+    sender: state.sender, pairCode: pairCode || '', content: content || '', persist: doPersist
+  })
+}
+
+// ---------- RPC：手机 → 电脑 的数据调用 ----------
+const pendingRpc = new Map()
+let rpcSeq = 0
+function rpc(method, params, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    if (!state.currentRoom) return reject(new Error('未连接教室'))
+    const reqId = 'r' + (++rpcSeq) + '_' + Date.now().toString(36)
+    const timer = setTimeout(() => {
+      pendingRpc.delete(reqId)
+      reject(new Error('请求超时（电脑可能不在线）'))
+    }, timeoutMs)
+    pendingRpc.set(reqId, {
+      resolve: (d) => { clearTimeout(timer); pendingRpc.delete(reqId); resolve(d) },
+      reject: (e) => { clearTimeout(timer); pendingRpc.delete(reqId); reject(new Error(e || '操作失败')) }
+    })
+    wsSend({ type: 'call', reqId, method, params: Array.isArray(params) ? params : [] })
+  })
+}
+
+// ---------- 中继消息分发 ----------
 function onRelayMessage(msg) {
   switch (msg.type) {
     case 'list':
       state.discovered = msg.rooms || []
-      renderRooms()
-      // 扫码进入的新教室 → 自动弹配对码框
+      renderPinned()
       if (state._needPairForDeviceId) {
         const room = state.discovered.find(r => r.deviceId === state._needPairForDeviceId)
         if (room) {
           state._pendingDeviceId = room.deviceId
-          state._pendingRoomName = room.name
           state._needPairForDeviceId = null
           openPairModal(room.name)
         }
@@ -420,52 +649,61 @@ function onRelayMessage(msg) {
       break
 
     case 'joinOk': {
+      closePairModal()
       const room = msg.room
-      // 落盘"我的教室"（含当前服务器地址，以后跨网络直连）
-      if (!state.pinnedHosts.find(p => p.deviceId === room.hostDeviceId)) {
-        state.pinnedHosts.push({
-          deviceId: room.hostDeviceId,
-          name: room.name,
-          relayUrl: state.relayUrl,
-          pairedAt: Date.now()
-        })
-        localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
+      // 浏览器一律按临时模式对待（兼容旧中继不回 temporary 的情况）
+      const temporary = msg.temporary || !isNative
+      if (!temporary) {
+        if (!state.pinnedHosts.find(p => p.deviceId === room.hostDeviceId)) {
+          state.pinnedHosts.push({ deviceId: room.hostDeviceId, name: room.name, relayUrl: state.relayUrl, pairedAt: Date.now() })
+          localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
+        }
+        applyNativeKeepAlive()
+        startStandbyPool()
+      } else {
+        showToast('临时模式：关闭网页后需重新扫码')
       }
-      state.currentRoom = { deviceId: room.hostDeviceId, name: room.name }
-      renderRooms()
-      goSend()
+      enterRoom({ deviceId: room.hostDeviceId, name: room.name, temporary })
       break
     }
 
-    case 'verifyOk': {
-      // 配对码校验通过（paired=false 首次）→ 带码 join，服务器登记授权并通知 PC
-      if (state._pendingDeviceId) {
-        sendJoin(state._pendingDeviceId, state._tempPairCode, '')
+    case 'notify':
+      handleIncomingNotify(msg)
+      break
+
+    case 'message':
+      // 广播消息（无 mobileId）或发给本手机的定向消息
+      if (!msg.mobileId || msg.mobileId === state.mobileId) {
+        receivePcMessage(msg.sender || '教室电脑', msg.content || '')
       }
+      break
+
+    case 'callResult': {
+      const p = pendingRpc.get(msg.reqId)
+      if (!p) break
+      msg.ok ? p.resolve(msg.data) : p.reject(msg.error)
       break
     }
 
-    case 'revoked': {
-      // 老师在电脑端移除了本手机
-      state.pinnedHosts = state.pinnedHosts.filter(p => p.deviceId !== msg.hostDeviceId)
-      localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
-      renderRooms()
+    case 'dataPush':
+      // 电脑端数据被其他手机修改 → 刷新当前班级数据
+      if (msg.kind === 'dataChanged' && state.tab === 'class') refreshClassAfterChange()
+      break
+
+    case 'revoked':
+      removePinnedLocally(msg.hostDeviceId)
+      if (state.currentRoom?.deviceId === msg.hostDeviceId) leaveRoom(true)
       showToast('老师已取消本手机的配对，需要重新扫码')
       break
-    }
 
     case 'error':
       if (msg.needPair) {
-        // 免码失败（被移除/电脑重装过）→ 转为配对码流程
         const id = state._lastJoinId
-        if (id) {
-          const room = state.discovered.find(r => r.deviceId === id)
+        if (id && isNative) {
           state._pendingDeviceId = id
-          state._pendingRoomName = room?.name || '教室'
-          state._needPairForDeviceId = null
-          openPairModal(state._pendingRoomName)
+          openPairModal(state.discovered.find(r => r.deviceId === id)?.name || '教室')
         } else {
-          showToast('需要配对码，请扫码重新配对', true)
+          showToast('需要配对码，请重新扫码', true)
         }
       } else {
         showToast(msg.msg || '操作失败', true)
@@ -474,235 +712,746 @@ function onRelayMessage(msg) {
   }
 }
 
-function wsSend(obj) {
-  if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-    state.ws.send(JSON.stringify(obj))
-  } else {
-    showToast('连接中，请稍候再试', true)
+// ============================================================
+//  页面导航
+// ============================================================
+const TABS = () => isNative
+  ? [['msg','💬','消息'], ['class','👥','班级'], ['catalog','📖','教材'], ['me','👤','我的']]
+  : [['msg','💬','消息'], ['me','👤','我的']]
+const TAB_TITLE = { msg: '消息大屏', class: '班级管理', catalog: '教材目录', me: '我的' }
+
+function renderTabbar() {
+  document.getElementById('tabbar').innerHTML = TABS().map(([k, icon, name]) =>
+    `<div class="tab ${state.tab === k ? 'active' : ''}" data-tab="${k}" onclick="switchTab('${k}')">
+       <span class="ti">${icon}</span>${name}
+       ${k === 'msg' && state.unread ? `<span class="badge">${state.unread > 99 ? '99+' : state.unread}</span>` : ''}
+     </div>`).join('')
+}
+
+function switchTab(tab) {
+  if (!TABS().find(t => t[0] === tab)) return
+  state.tab = tab
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.getElementById('page-' + tab)?.classList.add('active')
+  document.getElementById('barTitle').textContent = TAB_TITLE[tab]
+  if (tab === 'msg') { state.unread = 0; renderMessages(); renderTabbar() }
+  if (tab === 'class') ensureClassLoaded()
+  if (tab === 'catalog') ensureCatalogLoaded()
+  if (tab === 'me') document.getElementById('senderInput').value = state.sender
+  renderTabbar()
+}
+
+function enterRoom(room) {
+  state.currentRoom = room
+  state.msgs = loadMsgs(room.deviceId)
+  state.unread = 0
+  // 重置业务数据
+  state.grades = []; state.classes = []; state.students = []; state.subjects = []
+  state.selGrade = null; state.selClass = null; state.classLoaded = false
+  state.catalog = null; state.catGrade = null; state.catSubject = null; state.catalogLoaded = false
+  state.appInfo = null
+
+  document.getElementById('gate').style.display = 'none'
+  document.getElementById('main').style.display = 'block'
+  document.getElementById('barSub').textContent = room.name + (room.temporary ? ' · 临时' : '')
+  document.getElementById('meRoom').textContent = room.name + (room.temporary ? '（临时连接）' : '')
+  document.getElementById('meName').textContent = state.sender
+  document.getElementById('keepAliveCard').style.display = isNative ? 'block' : 'none'
+  document.getElementById('unpairBtn').style.display = isNative ? 'block' : 'none'
+  document.getElementById('quickTags').innerHTML = quickMessages
+    .map(m => `<div class="quick-tag" onclick="insertQuick('${m}')">${m}</div>`).join('')
+  updateBarChip()
+  switchTab('msg')
+  renderTabbar()
+
+  rpc('appInfo').then(info => {
+    state.appInfo = info
+    document.getElementById('curVersion').textContent = 'v' + (info.version || '?')
+    if (info.className) document.getElementById('meRoom').textContent = info.className + (room.temporary ? '（临时连接）' : '')
+  }).catch(() => {})
+}
+
+function leaveRoom(silent) {
+  const room = state.currentRoom
+  state.currentRoom = null
+  if (room && isNative) {
+    // 降为后台待命（临时浏览器无权限，服务器会拒绝，忽略即可）
+    wsSend({ type: 'standby', hostDeviceId: room.deviceId, mobileId: state.mobileId, sender: state.sender })
+    setTimeout(syncMainStandby, 300)
   }
+  hideBanner()
+  document.getElementById('main').style.display = 'none'
+  document.getElementById('gate').style.display = 'block'
+  renderPinned()
+  if (!silent) showToast('已离开教室')
 }
 
-/** 统一的 join 发送（记录最后尝试的教室，供 needPair 回退用） */
-function sendJoin(deviceId, pairCode, content) {
-  state._lastJoinId = deviceId
-  wsSend({
-    type: 'join',
-    hostDeviceId: deviceId,
-    mobileId: state.mobileId,
-    sender: state.sender,
-    pairCode: pairCode || '',
-    content: content || ''
-  })
-}
+// ============================================================
+//  入口页（扫码 / 我的教室）
+// ============================================================
+function renderPinned() {
+  const wrap = document.getElementById('pinnedWrap')
+  const el = document.getElementById('pinnedRooms')
+  wrap.style.display = isNative ? 'block' : 'none'
+  document.getElementById('gateNote').innerHTML = isNative
+    ? '🔒 只能看到你配对过的教室。<br>换手机 / 重装 App 后需要重新扫码配对。'
+    : '🌐 你正在使用<b>网页临时模式</b>：扫码并输入配对码即可进入，<b>不会记住本设备</b>，关闭网页后需重新扫码。<br>完整功能（班级管理 / 教材目录 / 后台消息）请安装 Android App。'
 
-// ============ 渲染（只显示自己配对过的教室）============
-function renderRooms() {
-  const pinned = state.pinnedHosts.map(p => {
-    const live = state.discovered.find(d => d.deviceId === p.deviceId)
-    return { ...p, online: !!live }
-  })
-
-  const pinnedEl = document.getElementById('pinnedRooms')
-  if (pinned.length === 0) {
-    pinnedEl.innerHTML = `<div class="empty">
-      <div class="empty-icon">📋</div>
-      还没有配对的教室
-      <div class="empty-tip">在教室电脑上点「开启手机连接」<br>用手机扫屏幕上的二维码，输入一次配对码即可<br>以后有网就能一键直连（WiFi/流量都行）</div>
-    </div>`
-  } else {
-    pinnedEl.innerHTML = pinned.map(r => `
-      <div class="room-card ${r.online ? '' : 'offline'}" onclick="tryJoinRoom('${r.deviceId}')">
-        <div class="room-avatar">🏫</div>
-        <div class="room-info">
-          <div class="room-name">${r.name}</div>
-          <div class="room-meta">
-            <span class="online-dot ${r.online ? '' : 'offline-dot'}"></span>
-            ${r.online ? '在线 · 点击直接进入' : '电脑端离线'}
-            <span class="pinned-tag">已配对</span>
-          </div>
-        </div>
-      </div>
-    `).join('')
-  }
-}
-
-// ============ 点教室卡片 ============
-function tryJoinRoom(deviceId) {
-  const pin = state.pinnedHosts.find(p => p.deviceId === deviceId)
-  if (!pin) {
-    // 安全兜底：非自己配对的一律拒绝，必须走扫码+配对码
-    showToast('请扫描电脑屏幕上的二维码来配对这个教室', true)
+  if (!isNative) { el.innerHTML = ''; return }
+  if (!state.pinnedHosts.length) {
+    el.innerHTML = `<div class="empty"><span class="ico">📋</span>还没有配对的教室
+      <div class="tip">在教室电脑开启「手机连接」<br>扫描屏幕二维码并输入一次配对码即可</div></div>`
     return
   }
+  el.innerHTML = state.pinnedHosts.map(p => {
+    const live = state.discovered.find(d => d.deviceId === p.deviceId)
+    return `<div class="room-card ${live ? '' : 'offline'}" onclick="tryJoinRoom('${p.deviceId}')">
+      <div class="room-avatar">🏫</div>
+      <div class="room-info">
+        <div class="room-name">${esc(p.name)}</div>
+        <div class="room-meta"><span class="online-dot ${live ? '' : 'off'}"></span>${live ? '在线 · 点击进入' : '电脑端离线'}</div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function tryJoinRoom(deviceId) {
+  const pin = state.pinnedHosts.find(p => p.deviceId === deviceId)
+  if (!pin) { showToast('请扫描电脑屏幕上的二维码', true); return }
   const live = state.discovered.find(d => d.deviceId === deviceId)
   if (!live) { showToast('电脑端不在线，到教室打开软件后再试', true); return }
-
-  // 该教室在另一个服务器上 → 切换服务器后自动加入
   if (pin.relayUrl && pin.relayUrl !== state.relayUrl) {
     state.relayUrl = pin.relayUrl
     localStorage.setItem('cm_relay', pin.relayUrl)
     state._pendingDeviceId = deviceId
-    if (state.ws) { try { state.ws.close() } catch {} }
+    try { state.ws.close() } catch {}
     connect()
-    showToast('正在进入「' + pin.name + '」...')
     return
   }
   state._pendingDeviceId = deviceId
-  if (state.connected) {
-    sendJoin(deviceId, '', '')
-    showToast('正在进入「' + pin.name + '」...')
-  } else {
-    connect()
-  }
+  if (state.connected) { sendJoin(deviceId, '', ''); showToast('正在进入「' + pin.name + '」…') }
+  else connect()
 }
 
 function openPairModal(roomName) {
   document.getElementById('pairTitle').textContent = '🔐 配对：' + (roomName || '教室')
   document.getElementById('pairCodeInput').value = ''
+  document.getElementById('pairMask').classList.add('show')
   document.getElementById('pairModal').classList.add('show')
-  setTimeout(() => document.getElementById('pairCodeInput').focus(), 300)
+  setTimeout(() => document.getElementById('pairCodeInput').focus(), 250)
 }
 function closePairModal() {
+  document.getElementById('pairMask').classList.remove('show')
   document.getElementById('pairModal').classList.remove('show')
   state._pendingDeviceId = null
   state._tempPairCode = ''
 }
-
 function confirmPair() {
   const code = document.getElementById('pairCodeInput').value.trim().toUpperCase()
-  if (!code || code.length < 4) { showToast('请输入 6 位配对码', true); return }
+  if (code.length < 4) { showToast('请输入 6 位配对码', true); return }
   if (!state._pendingDeviceId) { closePairModal(); return }
-
   state._tempPairCode = code
-  // verify 校验配对码 → verifyOk 后带码 join 完成授权
   wsSend({ type: 'verify', hostDeviceId: state._pendingDeviceId, mobileId: state.mobileId, pairCode: code })
 }
 
-// ============ 扫码（App 内嵌 Capacitor 时启用） ============
+// ---------- 扫码 ----------
 function startScan() {
-  if (window.Capacitor?.Plugins?.BarcodeScanner) {
-    window.Capacitor.Plugins.BarcodeScanner.scan({ formats: ['QR_CODE'] })
-      .then(result => { if (result.hasContents) handleQrContent(result.content) })
-      .catch(err => showToast('扫码失败: ' + err.message, true))
+  const scanner = window.Capacitor?.Plugins?.CapacitorBarcodeScanner
+  if (scanner) {
+    scanner.scanBarcode({ hint: 17 })
+      .then(result => { if (result && result.ScanResult) handleQrContent(result.ScanResult) })
+      .catch(() => {})
   } else {
-    showToast('请直接用手机相机/微信扫电脑屏幕上的二维码', true)
+    showToast('请用手机相机/微信扫电脑屏幕上的二维码', true)
   }
 }
-
-// 二维码内容：http(s)://host/m?r=ws(s)://relay&d=deviceId&n=教室名
 function handleQrContent(content) {
   try {
-    if (content.includes('?') || content.startsWith('http')) {
+    let r = null, d = null, n = null
+    if (content.startsWith('http') || content.includes('?')) {
       const u = new URL(content)
-      const sp = new URLSearchParams(u.search)
-      const r = sp.get('r'), d = sp.get('d'), n = sp.get('n')
-      if (d) { state._pendingDeviceId = d; state._pendingRoomName = n || '教室' }
-      if (r && r !== state.relayUrl) {
-        state.relayUrl = r
-        localStorage.setItem('cm_relay', r)
-        if (state.ws) { try { state.ws.close() } catch {} }
-        connect()
-      } else if (state.connected && d) {
-        const pin = state.pinnedHosts.find(p => p.deviceId === d)
-        sendJoin(d, pin ? '' : '', '')
-      }
-      return
+      const sp = u.searchParams
+      r = sp.get('r'); d = sp.get('d'); n = sp.get('n')
+    } else {
+      const data = JSON.parse(content)
+      r = data.r; d = data.d; n = data.n
     }
-    const data = JSON.parse(content)
-    if (data.r && data.r !== state.relayUrl) {
-      state.relayUrl = data.r
-      localStorage.setItem('cm_relay', data.r)
+    if (!d) return
+    state._pendingDeviceId = d
+    if (r && r !== state.relayUrl) {
+      state.relayUrl = r
+      localStorage.setItem('cm_relay', r)
+      try { state.ws.close() } catch {}
       connect()
+    } else if (state.connected) {
+      const pin = state.pinnedHosts.find(p => p.deviceId === d)
+      pin ? sendJoin(d, '', '') : (state._needPairForDeviceId = d, wsSend({ type: 'list' }))
     }
-    if (data.d) { state._pendingDeviceId = data.d; state._pendingRoomName = data.n || '教室' }
-  } catch {
-    if (/^[A-Z0-9]{4,}$/i.test(content.trim())) {
-      showToast('请先点教室卡片，再输入配对码', true)
-    }
+  } catch { /* 非本系统二维码 */ }
+}
+
+// ============================================================
+//  消息页（站内消息列表 + 顶部横幅 + 通知栏）
+// ============================================================
+function msgStorageKey(deviceId) { return 'cm_msgs_' + deviceId }
+function loadMsgs(deviceId) {
+  if (!isNative) return []
+  try { return JSON.parse(localStorage.getItem(msgStorageKey(deviceId)) || '[]') } catch { return [] }
+}
+function persistMsgs() {
+  if (!isNative || !state.currentRoom) return
+  try { localStorage.setItem(msgStorageKey(state.currentRoom.deviceId), JSON.stringify(state.msgs.slice(-100))) } catch {}
+}
+function fmtTime(ts) {
+  const d = new Date(ts)
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+}
+function appendMsg(m) {
+  state.msgs.push(m)
+  if (state.msgs.length > 100) state.msgs = state.msgs.slice(-100)
+  persistMsgs()
+}
+function receivePcMessage(sender, content) {
+  appendMsg({ from: 'pc', sender, content, at: Date.now() })
+  if (state.currentRoom && state.tab !== 'msg') {
+    state.unread++
+    showBanner(sender, content)
+    renderTabbar()
+  } else {
+    renderMessages()
   }
+  if (document.hidden || !state.currentRoom) postLocalNotification(sender, content)
 }
-
-// ============ 发送消息 ============
-function goSend() {
-  if (!state.currentRoom) return
-  document.getElementById('page-list').style.display = 'none'
-  document.getElementById('page-settings').style.display = 'none'
-  document.getElementById('page-send').style.display = 'block'
-  document.getElementById('targetName').textContent =
-    state.currentRoom.name + ' · ' + (state.currentRoom.deviceId || '').slice(0, 8)
-  document.getElementById('quickTags').innerHTML = quickMessages
-    .map(m => `<div class="quick-tag" onclick="document.getElementById('msgInput').value='${m}'">${m}</div>`).join('')
+function renderMessages() {
+  const el = document.getElementById('chatList')
+  if (!state.msgs.length) {
+    el.innerHTML = `<div class="empty"><span class="ico">📭</span>还没有消息
+      <div class="tip">电脑在「消息大屏」发送的内容会显示在这里<br>你也可以在下方发消息到教室大屏</div></div>`
+    return
+  }
+  el.innerHTML = state.msgs.map(m => {
+    if (m.from === 'sys') return `<div class="bubble sys">${esc(m.content)}</div>`
+    if (m.from === 'me') {
+      return `<div class="bubble me">${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
+    }
+    return `<div class="bubble in">${m.sender ? `<div class="b-sender">${esc(m.sender)}</div>` : ''}${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
+  }).join('')
+  el.scrollIntoView({ block: 'end' })
 }
-
-function goBack() {
-  document.getElementById('page-send').style.display = 'none'
-  document.getElementById('page-list').style.display = 'block'
-  state.currentRoom = null
-  switchTab('list')
+function insertQuick(t) {
+  const ta = document.getElementById('msgInput')
+  ta.value = t
+  ta.focus()
 }
-
 function sendMessage() {
   if (!state.currentRoom) return
-  const input = document.getElementById('msgInput')
-  const text = input.value.trim()
+  const ta = document.getElementById('msgInput')
+  const text = ta.value.trim()
   if (!text) { showToast('消息不能为空', true); return }
-
-  const btn = document.getElementById('sendBtn')
-  btn.classList.add('sending')
-  btn.textContent = '发送中...'
-
   sendJoin(state.currentRoom.deviceId, '', text)
-
-  showToast('已发送 ✅')
-  input.value = ''
-  btn.classList.remove('sending')
-  btn.textContent = '发送'
+  appendMsg({ from: 'me', content: text, at: Date.now() })
+  renderMessages()
+  ta.value = ''
 }
 
-// ============ 设置 ============
-function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab))
-  if (tab === 'list') {
-    document.getElementById('page-list').style.display = 'block'
-    document.getElementById('page-settings').style.display = 'none'
-    if (state.currentRoom) goBack()
-  } else if (tab === 'settings') {
-    document.getElementById('page-settings').style.display = 'block'
-    document.getElementById('page-list').style.display = 'none'
-    document.getElementById('relayUrlInput').value = state.relayUrl
-    document.getElementById('senderInput').value = state.sender
+// ---------- 顶部横幅 ----------
+let bannerTimer = null
+function showBanner(title, body) {
+  document.getElementById('bannerTitle').textContent = '📨 ' + title
+  document.getElementById('bannerBody').textContent = body
+  document.getElementById('banner').classList.add('show')
+  clearTimeout(bannerTimer)
+  bannerTimer = setTimeout(hideBanner, 6000)
+}
+function hideBanner() { document.getElementById('banner').classList.remove('show') }
+function openBanner() { hideBanner(); switchTab('msg') }
+
+// ============================================================
+//  班级管理（完整 CRUD，数据经中继向电脑端索取/写回）
+// ============================================================
+async function ensureClassLoaded() {
+  if (state.classLoaded) return
+  state.classLoaded = true
+  await loadGrades()
+}
+async function loadGrades() {
+  const el = document.getElementById('gradeChips')
+  el.innerHTML = `<div class="loading">加载中…</div>`
+  try {
+    state.grades = await rpc('getGrades')
+    state.selGrade = state.grades.find(g => g.id === state.selGrade?.id) || state.grades[0] || null
+    await loadGradeDetails()
+  } catch (e) { el.innerHTML = `<div class="loading">${esc(e.message)}</div>` }
+}
+async function loadGradeDetails() {
+  renderGrades()
+  if (!state.selGrade) {
+    state.classes = []; state.subjects = []; state.students = []; state.selClass = null
+    renderClasses(); renderSubjects(); renderStudents()
+    return
+  }
+  try {
+    const [classes, subjects] = await Promise.all([
+      rpc('getClasses', [state.selGrade.id]),
+      rpc('getSubjects', [state.selGrade.id])
+    ])
+    state.classes = classes
+    state.subjects = subjects
+    state.selClass = classes.find(c => c.id === state.selClass?.id) || null
+    state.students = state.selClass ? await rpc('getStudents', [state.selClass.id]) : []
+    renderClasses(); renderSubjects(); renderStudents()
+  } catch (e) { showToast(e.message, true) }
+}
+async function refreshClassAfterChange() {
+  if (!state.selGrade) return loadGrades()
+  await loadGradeDetails()
+}
+
+function renderGrades() {
+  const el = document.getElementById('gradeChips')
+  let html = state.grades.map(g =>
+    `<div class="chip ${state.selGrade?.id === g.id ? 'sel' : ''}" onclick="selectGrade(${g.id})">
+       🎓 ${esc(g.name)}
+       <span class="x" onclick="event.stopPropagation();editGrade(${g.id})">✏️</span>
+       <span class="x" onclick="event.stopPropagation();deleteGrade(${g.id})">🗑</span>
+     </div>`).join('')
+  html += `<div class="chip chip-add" onclick="editGrade()">＋ 年级</div>`
+  el.innerHTML = html
+}
+function renderClasses() {
+  document.getElementById('classCount').textContent = state.classes.length
+  const el = document.getElementById('classList')
+  if (!state.selGrade) { el.innerHTML = `<div class="empty" style="padding:18px">请先添加年级</div>`; return }
+  if (!state.classes.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无班级</div>`; return }
+  el.innerHTML = state.classes.map(c =>
+    `<div class="list-row" style="${state.selClass?.id === c.id ? 'background:rgba(0,212,255,.07);border-radius:10px;padding-left:10px' : ''}">
+       <div class="row-main" onclick="selectClass(${c.id})" style="cursor:pointer">
+         <div class="row-name">🏫 ${esc(c.name)}</div>
+       </div>
+       <div class="row-acts">
+         <button class="icon-btn" onclick="editClass(${c.id})">✏️</button>
+         <button class="icon-btn danger" onclick="deleteClass(${c.id})">🗑</button>
+       </div>
+     </div>`).join('')
+}
+function renderStudents() {
+  document.getElementById('studentCount').textContent = state.students.length
+  const el = document.getElementById('studentList')
+  if (!state.selClass) { el.innerHTML = `<div class="empty" style="padding:18px">${state.classes.length ? '请先选择班级' : '暂无班级'}</div>`; return }
+  if (!state.students.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无学生</div>`; return }
+  el.innerHTML = state.students.map(s => {
+    const color = avatarColor(s.name)
+    const genderIcon = s.gender === '男' ? '♂' : s.gender === '女' ? '♀' : ''
+    return `<div class="list-row">
+      <div class="row-avatar" style="background:${color}">${esc((s.name || '?').slice(0, 1))}</div>
+      <div class="row-main">
+        <div class="row-name">${esc(s.name)} <span style="font-size:11px;color:var(--text-dim)">${genderIcon}</span></div>
+        <div class="row-sub">抽背权重 ×${s.weight ?? 1}</div>
+      </div>
+      <div class="row-acts">
+        <button class="icon-btn" onclick="editStudentById(${s.id})">✏️</button>
+        <button class="icon-btn danger" onclick="deleteStudent(${s.id})">🗑</button>
+      </div>
+    </div>`
+  }).join('')
+}
+function renderSubjects() {
+  const el = document.getElementById('subjectList')
+  if (!state.selGrade) { el.innerHTML = `<div class="empty" style="padding:18px">请先添加年级</div>`; return }
+  if (!state.subjects.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无学科</div>`; return }
+  el.innerHTML = state.subjects.map(s =>
+    `<div class="list-row">
+      <div class="row-main"><div class="row-name">📚 ${esc(s.name)}</div></div>
+      <div class="row-acts">
+        <button class="icon-btn" onclick="editSubject(${s.id})">✏️</button>
+        <button class="icon-btn danger" onclick="deleteSubject(${s.id})">🗑</button>
+      </div>
+    </div>`).join('')
+}
+
+async function selectGrade(id) {
+  state.selGrade = state.grades.find(g => g.id === id)
+  await loadGradeDetails()
+}
+async function selectClass(id) {
+  state.selClass = state.classes.find(c => c.id === id)
+  if (state.selClass) state.students = await rpc('getStudents', [id]).catch(() => [])
+  renderClasses(); renderStudents()
+}
+
+// ---------- 表单弹窗 ----------
+function openSheet(title, fields, onSubmitText, onSubmit) {
+  const sheet = document.getElementById('sheet')
+  sheet.innerHTML = `<h3>${esc(title)}</h3>` + fields.map(f => {
+    if (f.type === 'select') {
+      return `<div class="field"><label>${esc(f.label)}</label>
+        <select class="ipt" id="f_${f.key}">${f.options.map(o =>
+          `<option value="${esc(o.value)}" ${String(o.value) === String(f.value ?? '') ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>`
+    }
+    return `<div class="field"><label>${esc(f.label)}</label>
+      <input class="ipt" id="f_${f.key}" type="${f.type || 'text'}" value="${esc(f.value ?? '')}" placeholder="${esc(f.placeholder || '')}" step="${f.step || ''}" min="${f.min ?? ''}"></div>`
+  }).join('') +
+  `<div style="display:flex;gap:10px;margin-top:6px">
+     <button class="btn btn-ghost" style="flex:1" onclick="closeSheet()">取消</button>
+     <button class="btn btn-primary" style="flex:1" id="sheetOk">${esc(onSubmitText)}</button>
+   </div>`
+  document.getElementById('sheetMask').classList.add('show')
+  sheet.classList.add('show')
+  document.getElementById('sheetOk').onclick = async () => {
+    const values = {}
+    for (const f of fields) {
+      let v = document.getElementById('f_' + f.key).value
+      if (f.type === 'number') v = v === '' ? undefined : Number(v)
+      values[f.key] = v
+    }
+    try {
+      await onSubmit(values)
+      closeSheet()
+    } catch (e) { showToast(e.message || '操作失败', true) }
   }
 }
+function closeSheet() {
+  document.getElementById('sheetMask').classList.remove('show')
+  document.getElementById('sheet').classList.remove('show')
+}
 
-function saveSettings() {
+function editGrade(id) {
+  const g = state.grades.find(x => x.id === id)
+  openSheet(g ? '编辑年级' : '新增年级', [
+    { key: 'name', label: '年级名称', value: g?.name || '', placeholder: '如：九年级' }
+  ], '保存', async (v) => {
+    if (!v.name?.trim()) throw new Error('名称不能为空')
+    if (g) await rpc('updateGrade', [g.id, v.name.trim(), g.sort_order ?? 0])
+    else await rpc('addGrade', [v.name.trim(), state.grades.length])
+    await loadGrades()
+  })
+}
+async function deleteGrade(id) {
+  const g = state.grades.find(x => x.id === id)
+  if (!confirm(`删除年级「${g?.name}」？其下班级/学生/学科不会被删除但将无法显示。`)) return
+  await rpc('deleteGrade', [id]).catch(e => showToast(e.message, true))
+  state.selGrade = null
+  await loadGrades()
+}
+function editClass(id) {
+  if (!state.selGrade) return showToast('请先选择年级', true)
+  const c = state.classes.find(x => x.id === id)
+  openSheet(c ? '编辑班级' : '新增班级', [
+    { key: 'name', label: '班级名称', value: c?.name || '', placeholder: '如：1班' }
+  ], '保存', async (v) => {
+    if (!v.name?.trim()) throw new Error('名称不能为空')
+    if (c) await rpc('updateClass', [c.id, v.name.trim()])
+    else await rpc('addClass', [state.selGrade.id, v.name.trim()])
+    await loadGradeDetails()
+  })
+}
+async function deleteClass(id) {
+  const c = state.classes.find(x => x.id === id)
+  if (!confirm(`删除班级「${c?.name}」？该班学生也会被删除。`)) return
+  await rpc('deleteClass', [id]).catch(e => showToast(e.message, true))
+  if (state.selClass?.id === id) { state.selClass = null; state.students = [] }
+  await loadGradeDetails()
+}
+function editStudentById(id) {
+  const s = state.students.find(x => x.id === id)
+  if (s) editStudent(s)
+}
+function editStudent(s) {
+  if (!state.selClass) return showToast('请先选择班级', true)
+  const editing = typeof s === 'object' ? s : null
+  openSheet(editing ? '编辑学生' : '新增学生', [
+    { key: 'name', label: '姓名', value: editing?.name || '', placeholder: '学生姓名' },
+    { key: 'gender', label: '性别', type: 'select', value: editing?.gender ?? '',
+      options: [{ value: '', label: '保密' }, { value: '男', label: '男' }, { value: '女', label: '女' }] },
+    { key: 'weight', label: '抽背权重（越大越容易被抽中，默认 1）', type: 'number', value: editing?.weight ?? 1, step: '0.1', min: '0' }
+  ], '保存', async (v) => {
+    if (!v.name?.trim()) throw new Error('姓名不能为空')
+    const w = Math.max(0, Number(v.weight) || 1)
+    if (editing) await rpc('updateStudent', [editing.id, v.name.trim(), v.gender || '', w])
+    else await rpc('addStudent', [state.selClass.id, v.name.trim(), v.gender || '', w])
+    state.students = await rpc('getStudents', [state.selClass.id])
+    renderStudents()
+  })
+}
+async function deleteStudent(id) {
+  if (!confirm('确定删除这名学生？')) return
+  await rpc('deleteStudent', [id]).catch(e => showToast(e.message, true))
+  state.students = await rpc('getStudents', [state.selClass.id]).catch(() => [])
+  renderStudents()
+}
+function editSubject(id) {
+  if (!state.selGrade) return showToast('请先选择年级', true)
+  const s = state.subjects.find(x => x.id === id)
+  openSheet(s ? '编辑学科' : '新增学科', [
+    { key: 'name', label: '学科名称', value: s?.name || '', placeholder: '如：语文' }
+  ], '保存', async (v) => {
+    if (!v.name?.trim()) throw new Error('名称不能为空')
+    if (s) await rpc('updateSubject', [s.id, v.name.trim(), state.selGrade.id])
+    else await rpc('addSubject', [v.name.trim(), state.selGrade.id])
+    await loadGradeDetails()
+  })
+}
+async function deleteSubject(id) {
+  const s = state.subjects.find(x => x.id === id)
+  if (!confirm(`删除学科「${s?.name}」？其下抽背篇目不显示。`)) return
+  await rpc('deleteSubject', [id]).catch(e => showToast(e.message, true))
+  await loadGradeDetails()
+}
+
+// ============================================================
+//  教材目录（只读）
+// ============================================================
+async function ensureCatalogLoaded() {
+  if (state.catalogLoaded) return
+  state.catalogLoaded = true
+  const el = document.getElementById('catUnits')
+  el.innerHTML = `<div class="loading">加载中…</div>`
+  try {
+    state.catalog = await rpc('catalog')
+    renderCatalog()
+  } catch (e) { el.innerHTML = `<div class="loading">${esc(e.message)}</div>` }
+}
+function renderCatalog() {
+  const cat = state.catalog || {}
+  const grades = Object.keys(cat)
+  const gEl = document.getElementById('catGradeChips')
+  if (!grades.length) {
+    gEl.innerHTML = `<div class="loading">电脑端暂无教材数据</div>`
+    document.getElementById('catSubjectChips').innerHTML = ''
+    document.getElementById('catUnits').innerHTML = ''
+    return
+  }
+  if (!state.catGrade || !cat[state.catGrade]) state.catGrade = grades[0]
+  gEl.innerHTML = grades.map(g =>
+    `<div class="chip ${state.catGrade === g ? 'sel' : ''}" onclick="selectCatGrade('${esc(g)}')">🎓 ${esc(g)}</div>`).join('')
+  renderCatalogSubjects()
+}
+function renderCatalogSubjects() {
+  const subjects = Object.keys(state.catalog?.[state.catGrade] || {})
+  if (!state.catSubject || !state.catalog[state.catGrade][state.catSubject]) state.catSubject = subjects[0] || null
+  document.getElementById('catSubjectChips').innerHTML = subjects.map(s =>
+    `<div class="chip ${state.catSubject === s ? 'sel' : ''}" onclick="selectCatSubject('${esc(s)}')">📖 ${esc(s)}</div>`).join('')
+  renderCatalogUnits()
+}
+function renderCatalogUnits() {
+  const el = document.getElementById('catUnits')
+  const units = state.catalog?.[state.catGrade]?.[state.catSubject]
+  if (!units) { el.innerHTML = `<div class="empty" style="padding:20px">暂无课文</div>`; return }
+  catArticleStore.length = 0
+  let html = ''
+  for (const [unit, list] of Object.entries(units)) {
+    if (unit) html += `<div class="cat-unit-head">📂 ${esc(unit)}</div>`
+    html += `<div class="cat-unit" style="${unit ? 'border-top:none;border-radius:0 0 12px 12px' : ''}">`
+    html += (list || []).map((q) => {
+      const idx = catArticleStore.push(q) - 1
+      return `<div class="cat-q" onclick="showArticleAt(${idx})">
+         <span>📄</span><span class="qt">${esc(q.title || '未命名')}</span><span class="arrow">阅读 ›</span>
+       </div>`
+    }).join('')
+    html += `</div>`
+  }
+  el.innerHTML = html || `<div class="empty" style="padding:20px">暂无课文</div>`
+}
+const catArticleStore = []
+function selectCatGrade(g) { state.catGrade = g; state.catSubject = null; renderCatalog() }
+function selectCatSubject(s) { state.catSubject = s; renderCatalogUnits() }
+function showArticleAt(i) {
+  const q = catArticleStore[i]
+  if (!q) return
+  document.getElementById('infoTitle').textContent = q.title || '课文内容'
+  document.getElementById('infoBody').innerHTML = `<div class="article-content">${esc(q.content || '（无内容）')}</div>`
+  document.getElementById('infoMask').classList.add('show')
+  document.getElementById('infoModal').classList.add('show')
+}
+function closeInfo() {
+  document.getElementById('infoMask').classList.remove('show')
+  document.getElementById('infoModal').classList.remove('show')
+}
+
+// ============================================================
+//  我的：昵称 / 保活 / 中继 / 更新 / 配对
+// ============================================================
+function saveSender() {
+  const v = document.getElementById('senderInput').value.trim() || '手机用户'
+  state.sender = v
+  localStorage.setItem('cm_sender', v)
+  document.getElementById('meName').textContent = v
+  showToast('昵称已保存 ✅')
+}
+function saveRelayUrl() {
   const url = document.getElementById('relayUrlInput').value.trim()
-  state.sender = document.getElementById('senderInput').value.trim() || '手机用户'
-  localStorage.setItem('cm_sender', state.sender)
-  if (url && url !== state.relayUrl) {
-    state.relayUrl = url
-    localStorage.setItem('cm_relay', url)
-    if (state.ws) { try { state.ws.close() } catch {} }
-    setTimeout(connect, 300)
-  }
-  showToast('已保存 ✅')
-  switchTab('list')
+  if (!url || url === state.relayUrl) return showToast('地址没有变化')
+  state.relayUrl = url
+  localStorage.setItem('cm_relay', url)
+  try { state.ws.close() } catch {}
+  setTimeout(connect, 300)
+  showToast('正在重新连接…')
+}
+function unpairCurrent() {
+  const room = state.currentRoom
+  if (!room) return
+  if (!confirm('解除配对后，进入该教室需要重新扫码输码，确定？')) return
+  wsSend({ type: 'unpair', hostDeviceId: room.deviceId, mobileId: state.mobileId })
+  removePinnedLocally(room.deviceId)
+  leaveRoom(true)
+  showToast('已解除配对')
+}
+function removePinnedLocally(hostDeviceId) {
+  state.pinnedHosts = state.pinnedHosts.filter(p => p.deviceId !== hostDeviceId)
+  localStorage.setItem('cm_pinned', JSON.stringify(state.pinnedHosts))
+  renderPinned()
 }
 
-function clearPinned() {
-  if (!confirm('确定与所有教室解除配对吗？\n解除后需要重新扫码并输入配对码。')) return
-  // 通知在线的电脑端解除授权
+// ---------- 检查更新 ----------
+function cmpVersion(a, b) {
+  const pa = String(a).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
+  const pb = String(b).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0)
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1
+  }
+  return 0
+}
+async function checkAppUpdate() {
+  const box = document.getElementById('updateResult')
+  box.innerHTML = `<div class="row-sub" style="padding:6px 2px">正在检查…</div>`
+  try {
+    const repo = state.appInfo?.updateRepo
+    if (!repo) { box.innerHTML = `<div class="row-sub" style="padding:6px 2px">电脑端未配置更新仓库，请在电脑设置中填写 GitHub 仓库（owner/repo）</div>`; return }
+    const r = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+      headers: { Accept: 'application/vnd.github+json' }
+    })
+    if (!r.ok) throw new Error('GitHub 返回 ' + r.status)
+    const rel = await r.json()
+    const latest = String(rel.tag_name || '').replace(/^v/, '')
+    const current = state.appInfo?.version || '0'
+    const apk = (rel.assets || []).find(a => String(a.name).toLowerCase().endsWith('.apk'))
+    if (cmpVersion(latest, current) <= 0) {
+      box.innerHTML = `<div class="kv-row"><span class="k">检查结果</span><span class="v" style="color:var(--success)">已是最新版本 v${esc(current)}</span></div>`
+      return
+    }
+    box.innerHTML = `
+      <div class="kv-row"><span class="k">最新版本</span><span class="v" style="color:var(--accent)">v${esc(latest)}</span></div>
+      ${rel.body ? `<div class="update-notes">${esc(rel.body)}</div>` : ''}
+      ${apk
+        ? `<button class="btn btn-primary btn-block btn-sm" onclick="downloadApk('${apk.browser_download_url}')">⬇️ 下载新版 APK（${(apk.size / 1048576).toFixed(1)} MB）</button>
+           <div class="row-sub" style="padding:8px 2px 0;font-size:11px;line-height:1.6">下载完成后点击通知栏/下载列表里的 APK 安装；如系统拦截请允许「安装未知应用」。</div>`
+        : `<button class="btn btn-ghost btn-block btn-sm" onclick="window.open('${esc(rel.html_url)}','_blank')">打开下载页面</button>`}`
+  } catch (e) {
+    box.innerHTML = `<div class="row-sub" style="padding:6px 2px;color:var(--danger)">检查失败：${esc(e.message)}</div>`
+  }
+}
+function downloadApk(url) {
+  // 交给系统浏览器下载（App 内不引第三方下载/安装插件）
+  window.open(url, '_blank')
+  showToast('已在浏览器中开始下载，完成后点击 APK 安装')
+}
+
+// ============================================================
+//  App 后台待命（standby）/ 保活 / 本地通知
+// ============================================================
+function syncMainStandby() {
+  if (!isNative || !keepAliveEnabled()) return
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return
   for (const p of state.pinnedHosts) {
-    if (p.relayUrl === state.relayUrl) {
-      wsSend({ type: 'unpair', hostDeviceId: p.deviceId, mobileId: state.mobileId })
+    if ((p.relayUrl || state.relayUrl) === state.relayUrl) {
+      wsSend({ type: 'standby', hostDeviceId: p.deviceId, mobileId: state.mobileId, sender: state.sender })
     }
   }
-  state.pinnedHosts = []
-  localStorage.removeItem('cm_pinned')
-  renderRooms()
-  showToast('已清除配对')
+}
+const standbyPool = []
+function stopStandbyPool() { while (standbyPool.length) { try { standbyPool.pop().stop() } catch {} } }
+function startStandbyPool() {
+  stopStandbyPool()
+  if (!isNative || !keepAliveEnabled()) return
+  const groups = new Map()
+  for (const p of state.pinnedHosts) {
+    const key = p.relayUrl || state.relayUrl
+    if (key === state.relayUrl) continue
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(p)
+  }
+  for (const [relay, hosts] of groups) standbyPool.push(createStandbyConn(relay, hosts))
+}
+function createStandbyConn(relayUrl, hosts) {
+  let ws = null, stopped = false, attempts = 0, timer = null
+  function sendHosts() {
+    for (const h of hosts) {
+      try { ws.send(JSON.stringify({ type: 'standby', hostDeviceId: h.deviceId, mobileId: state.mobileId, sender: state.sender })) } catch {}
+    }
+  }
+  function open() {
+    try { ws = new WebSocket(relayUrl.replace(/\/+$/, '').replace(/\/relay$/, '') + '/relay') } catch { return schedule() }
+    ws.onopen = () => { attempts = 0; sendHosts() }
+    ws.onmessage = (raw) => {
+      let m
+      try { m = JSON.parse(raw.data) } catch { return }
+      if (m.type === 'notify') handleIncomingNotify(m)
+      else if (m.type === 'revoked') removePinnedLocally(m.hostDeviceId)
+    }
+    ws.onclose = () => schedule()
+    ws.onerror = () => {}
+  }
+  function schedule() {
+    if (stopped) return
+    attempts++
+    timer = setTimeout(open, Math.min(5000, attempts * 1000))
+  }
+  open()
+  return { stop() { stopped = true; if (timer) clearTimeout(timer); try { ws.close() } catch {} } }
 }
 
-// ============ Toast ============
+function handleIncomingNotify(msg) {
+  state._lastNotify = msg
+  postLocalNotification(msg.title || '电脑请求连接', msg.body || '')
+  if (!document.hidden) showNotifyDialog(msg)
+}
+function showNotifyDialog(msg) {
+  document.getElementById('notifyModalHost').textContent = '🏫 ' + (msg.hostName || '教室电脑')
+  document.getElementById('notifyModalBody').textContent = msg.body || ''
+  document.getElementById('notifyMask').classList.add('show')
+  document.getElementById('notifyModal').classList.add('show')
+}
+function acceptNotify() {
+  const m = state._lastNotify
+  document.getElementById('notifyMask').classList.remove('show')
+  document.getElementById('notifyModal').classList.remove('show')
+  if (m?.hostDeviceId) tryJoinRoom(m.hostDeviceId)
+}
+function declineNotify() {
+  document.getElementById('notifyMask').classList.remove('show')
+  document.getElementById('notifyModal').classList.remove('show')
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state._lastNotify) showNotifyDialog(state._lastNotify)
+})
+
+async function postLocalNotification(title, body) {
+  try {
+    const ln = window.Capacitor?.Plugins?.LocalNotifications
+    if (!ln) return
+    const perm = await ln.requestPermissions()
+    if (perm.display === 'denied') return
+    await ln.schedule({ notifications: [{ id: (Date.now() % 2147483000), title, body, autoCancel: true }] })
+  } catch {}
+}
+function toggleKeepAlive(on) {
+  localStorage.setItem('cm_keepalive', on ? '1' : '0')
+  applyNativeKeepAlive()
+  if (on) { syncMainStandby(); startStandbyPool() } else stopStandbyPool()
+}
+function applyNativeKeepAlive() {
+  try {
+    const ka = window.Capacitor?.Plugins?.KeepAlive
+    if (!ka) return
+    if (keepAliveEnabled() && state.pinnedHosts.length) ka.start().catch(() => {})
+    else ka.stop().catch(() => {})
+  } catch {}
+}
+
+// ============================================================
+//  工具
+// ============================================================
 let toastTimer
 function showToast(msg, isError) {
   const t = document.getElementById('toast')
@@ -711,27 +1460,42 @@ function showToast(msg, isError) {
   clearTimeout(toastTimer)
   toastTimer = setTimeout(() => t.classList.remove('show'), 2600)
 }
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+function avatarColor(name) {
+  const palette = ['#00b8d9', '#7c3aed', '#e8590c', '#2f9e44', '#e64980', '#f08c00', '#1971c2', '#9c36b5']
+  let h = 0
+  for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return palette[h % palette.length]
+}
 
-// ============ 启动 ============
+// ============================================================
+//  启动
+// ============================================================
 ;(function init() {
-  // 1. URL 参数（扫码进入）：r=服务器 d=教室 n=名称
   try {
     const sp = new URLSearchParams(location.search)
-    const r = sp.get('r'), d = sp.get('d'), n = sp.get('n')
+    const r = sp.get('r'), d = sp.get('d')
     if (r) { state.relayUrl = r; localStorage.setItem('cm_relay', r) }
-    if (d) { state._pendingDeviceId = d; state._pendingRoomName = n || '教室' }
-  } catch (e) { /* ignore */ }
+    if (d) state._pendingDeviceId = d
+  } catch {}
 
-  // 2. 空地址 → 用当前页面 origin 推断
   if (!state.relayUrl) {
-    try {
-      state.relayUrl = new URL(location.href).origin.replace(/^http/, 'ws')
-      localStorage.setItem('cm_relay', state.relayUrl)
-    } catch {}
+    state.relayUrl = isNative ? DEFAULT_RELAY
+      : (() => { try { return new URL(location.href).origin.replace(/^http/, 'ws') } catch { return DEFAULT_RELAY } })()
+    localStorage.setItem('cm_relay', state.relayUrl)
   }
 
+  document.getElementById('senderInput').value = state.sender
+  document.getElementById('relayUrlInput').value = state.relayUrl
+  document.getElementById('keepAliveInput').checked = keepAliveEnabled()
+
+  renderPinned()
+  renderTabbar()
   connect()
-  renderRooms()
+  if (isNative && state.pinnedHosts.length) { applyNativeKeepAlive(); startStandbyPool() }
 })()
 </script>
 </body>

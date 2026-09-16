@@ -1,7 +1,14 @@
 <template>
-  <div class="app">
+  <div class="app" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <!-- 侧边栏 -->
     <aside class="sidebar">
+      <!-- 折叠/展开按钮（贴右边缘） -->
+      <button
+        class="sidebar-toggle"
+        :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'"
+        @click="toggleSidebar"
+      >{{ sidebarCollapsed ? '»' : '«' }}</button>
+
       <!-- Logo -->
       <div class="logo">
         <div class="logo-icon-wrap">
@@ -22,6 +29,7 @@
           :key="item.index"
           class="nav-item"
           :class="{ active: currentTab === item.index }"
+          :title="item.text"
           @click="switchTab(item.index)"
         >
           <!-- 左侧渐变指示条（active 时显示） -->
@@ -36,99 +44,123 @@
 
       <div class="nav-spacer"></div>
 
-      <!-- 连接面板：云端 Relay + 二维码 -->
-      <div class="network-card card">
-        <div class="net-title">
-          <span class="net-title-icon">📡</span>
-          <span>手机连接</span>
-          <span class="net-status-pill" :class="relayConnected ? 'online' : 'offline'">
-            <span class="pill-dot"></span>
-            {{ relayConnected ? '在线' : '离线' }}
-          </span>
-        </div>
-
-        <!-- 教室名字 -->
-        <div class="net-class-row">
-          <span class="net-label">🏫 教室名字</span>
-          <input class="net-class-input" v-model="className" @change="saveClass" :disabled="relayConnected" placeholder="如：高一3班" />
-        </div>
-
-        <!-- 二维码（点击放大显示配对码） -->
-        <div class="net-qr-row">
-          <div class="net-qr-wrap" @click="qrZoomed = true" title="点击放大查看配对码">
-            <canvas ref="qrCanvas" class="net-qr"></canvas>
-            <div v-if="!relayConnected" class="net-qr-placeholder">🔌<br>未连接</div>
-            <!-- 配对成功 overlay -->
-            <transition name="pair-anim">
-              <div v-if="pairSuccess" class="pair-success-overlay" @click.stop>
-                <div class="pair-success-check">✅</div>
-                <div class="pair-success-text">📱 {{ pairSuccessName }}</div>
-                <div class="pair-success-sub">配对成功</div>
-              </div>
-            </transition>
-            <div class="net-qr-hint" v-if="relayConnected && !pairSuccess">🔍 点击放大 · 查看配对码</div>
-          </div>
-        </div>
-
-        <!-- 网络模式：局域网（同 WiFi） / 公网（任意网络） -->
-        <div class="net-mode">
-          <div class="net-mode-seg">
-            <button
-              class="net-mode-btn"
-              :class="{ active: netMode === 'lan' }"
-              @click="switchNetMode('lan')"
-            >🏠 同 WiFi</button>
-            <button
-              class="net-mode-btn"
-              :class="{ active: netMode === 'public' }"
-              @click="switchNetMode('public')"
-            >🌍 任意网络</button>
-          </div>
-          <div class="net-mode-hint">
-            <template v-if="netMode === 'lan'">手机与电脑连同一个 WiFi 即可，无需任何配置</template>
-            <template v-else>手机用流量 / 任意 WiFi 都能连；电脑与手机均访问同一个公网服务</template>
-          </div>
-          <div v-if="netMode === 'public'" class="net-public-row">
-            <input
-              type="text"
-              class="net-public-input"
-              v-model="publicRelayUrl"
-              placeholder="wss://your-app.onrender.com"
-              @change="savePublicRelay"
-            />
-            <button class="btn-mini" @click="savePublicRelay">保存</button>
-          </div>
-        </div>
-
-        <!-- 连接按钮 -->
-        <div class="net-actions">
-          <button
-            class="btn-server"
-            :class="relayConnected ? 'btn-stop' : 'btn-primary'"
-            :disabled="relayConnecting"
-            @click="toggleRelay"
-          >
-            <span v-if="relayConnecting">⏳ 连接中…</span>
-            <span v-else-if="!relayConnected">{{ netMode === 'public' ? '🌐 开启公网连接' : '📶 开启手机连接' }}</span>
-            <span v-else>⏹ 断开</span>
-          </button>
-        </div>
-
-        <div v-if="relayConnecting && netMode === 'public'" class="net-warn">
-          ☁️ 免费公网服务休眠后首次唤醒最长约 1 分钟，请耐心等待
-        </div>
-        <div v-if="relayConnectError" class="net-error">⚠️ {{ relayConnectError }}</div>
+      <!-- 手机连接入口（点击开大模态框） -->
+      <div class="side-entry card" @click="openPhoneModal" title="手机连接">
+        <span class="se-icon">📡</span>
+        <span class="se-label">手机连接</span>
+        <span class="se-status" :class="relayConnected ? 'online' : 'offline'">
+          <span class="se-dot"></span><span class="se-status-text">{{ relayConnected ? '在线' : '离线' }}</span>
+        </span>
+        <span class="se-arrow">›</span>
       </div>
 
       <!-- 设置按钮（点击开模态框） -->
       <div class="settings-wrap">
-        <div class="settings-btn card" @click="openSettings">
+        <div class="settings-btn card" @click="openSettings" title="设置">
           <span class="st-icon">⚙️</span>
           <span class="st-label">设置</span>
           <span class="st-arrow">›</span>
         </div>
       </div>
     </aside>
+
+    <!-- ============ 手机连接模态框 ============ -->
+    <transition name="modal">
+      <div v-if="phoneModalOpen" class="modal-overlay" @click.self="phoneModalOpen = false">
+        <div class="modal-card phone-modal">
+          <div class="modal-top-bar"></div>
+          <div class="modal-header">
+            <h2>
+              📡 手机连接
+              <span class="net-status-pill phone-status-pill" :class="relayConnected ? 'online' : 'offline'">
+                <span class="pill-dot"></span>
+                {{ relayConnected ? '在线' : '离线' }}
+              </span>
+            </h2>
+            <button class="modal-close" @click="phoneModalOpen = false">✕</button>
+          </div>
+          <div class="modal-body phone-body">
+            <!-- 左：二维码 + 配对码 -->
+            <div class="phone-qr-col">
+              <div class="net-qr-wrap phone-qr-wrap" @click="qrZoomed = true" title="点击放大查看配对码">
+                <canvas ref="qrCanvas" class="net-qr phone-qr"></canvas>
+                <div v-if="!relayConnected" class="net-qr-placeholder">🔌<br>未连接</div>
+                <!-- 配对成功 overlay -->
+                <transition name="pair-anim">
+                  <div v-if="pairSuccess" class="pair-success-overlay" @click.stop>
+                    <div class="pair-success-check">✅</div>
+                    <div class="pair-success-text">📱 {{ pairSuccessName }}</div>
+                    <div class="pair-success-sub">配对成功</div>
+                  </div>
+                </transition>
+                <div class="net-qr-hint" v-if="relayConnected && !pairSuccess">🔍 点击放大 · 查看配对码</div>
+              </div>
+              <div class="phone-pair-code" :class="{ active: relayConnected }">{{ displayCode }}</div>
+              <div class="phone-qr-tip">🏫 {{ className }}</div>
+              <div v-if="pairedMobiles.length" class="phone-paired">✅ 已配对 {{ pairedMobiles.length }} 台手机 · 管理在「设置」中</div>
+            </div>
+
+            <!-- 右：设置 -->
+            <div class="phone-form">
+              <!-- 教室名字 -->
+              <div class="net-class-row">
+                <span class="net-label">🏫 教室名字</span>
+                <input class="net-class-input" v-model="className" @change="saveClass" placeholder="如：高一3班" />
+              </div>
+
+              <!-- 网络模式：局域网（同 WiFi） / 公网（任意网络） -->
+              <div class="net-mode">
+                <div class="net-mode-seg">
+                  <button
+                    class="net-mode-btn"
+                    :class="{ active: netMode === 'lan' }"
+                    @click="switchNetMode('lan')"
+                  >🏠 同 WiFi</button>
+                  <button
+                    class="net-mode-btn"
+                    :class="{ active: netMode === 'public' }"
+                    @click="switchNetMode('public')"
+                  >🌍 任意网络</button>
+                </div>
+                <div class="net-mode-hint">
+                  <template v-if="netMode === 'lan'">手机与电脑连同一个 WiFi 即可，无需任何配置</template>
+                  <template v-else>手机用流量 / 任意 WiFi 都能连；电脑与手机均访问同一个公网服务</template>
+                </div>
+                <div v-if="netMode === 'public'" class="net-public-row">
+                  <input
+                    type="text"
+                    class="net-public-input"
+                    v-model="publicRelayUrl"
+                    placeholder="wss://your-app.onrender.com"
+                    @change="savePublicRelay"
+                  />
+                  <button class="btn-mini" @click="savePublicRelay">保存</button>
+                </div>
+              </div>
+
+              <!-- 连接按钮 -->
+              <div class="net-actions">
+                <button
+                  class="btn-server"
+                  :class="relayConnected ? 'btn-stop' : 'btn-primary'"
+                  :disabled="relayConnecting"
+                  @click="toggleRelay"
+                >
+                  <span v-if="relayConnecting">⏳ 连接中…</span>
+                  <span v-else-if="!relayConnected">{{ netMode === 'public' ? '🌐 开启公网连接' : '📶 开启手机连接' }}</span>
+                  <span v-else>⏹ 断开连接</span>
+                </button>
+              </div>
+
+              <div v-if="relayConnecting && netMode === 'public'" class="net-warn">
+                ☁️ 免费公网服务休眠后首次唤醒最长约 1 分钟，请耐心等待
+              </div>
+              <div v-if="relayConnectError" class="net-error">⚠️ {{ relayConnectError }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- ============ 设置模态框 ============ -->
     <transition name="modal">
@@ -146,6 +178,16 @@
                 <input type="checkbox" :checked="autoLaunch" @change="setAutoLaunch" />
                 <span>开机自启动</span>
               </label>
+              <div class="set-hint">勾选后启动时自动最小化到系统托盘</div>
+            </div>
+
+            <!-- 关闭按钮行为 -->
+            <div class="set-row">
+              <label class="switch-row">
+                <input type="checkbox" :checked="closeToTray" @change="setCloseToTray" />
+                <span>关闭窗口最小化到系统托盘（推荐）</span>
+              </label>
+              <div class="set-hint">关闭后软件继续在托盘运行，在托盘右键可退出；关掉本选项则点 X 会完全退出</div>
             </div>
 
             <!-- 外观主题：深色 / 浅色 / 跟随系统 -->
@@ -184,18 +226,70 @@
                     <div class="paired-info">
                       <span class="paired-name">{{ m.sender || '未命名设备' }}</span>
                       <span class="paired-meta">
-                        <span class="paired-dot"></span>
-                        已授权免码
+                        <span class="paired-dot" :class="m.state || 'offline'"></span>
+                        {{ stateLabel(m.state) }}
                         <span class="paired-sep">·</span>
                         <code>{{ (m.mobileId || '').slice(0, 8) }}</code>
                         <span v-if="m.joinedAt" class="paired-sep">·</span>
                         <span v-if="m.joinedAt">{{ formatPairedTime(m.joinedAt) }}</span>
                       </span>
                     </div>
-                    <button class="btn-mini danger paired-remove" @click="removePaired(m)">✕ 移除</button>
+                    <div class="paired-actions">
+                      <button class="btn-mini paired-msg" @click="openNotify(m)">💬 发消息</button>
+                      <button class="btn-mini danger paired-remove" @click="removePaired(m)">✕ 移除</button>
+                    </div>
+                    <!-- 内联发消息条 -->
+                    <div v-if="notifyTargetId === m.mobileId" class="paired-notify-box">
+                      <input
+                        class="paired-notify-input"
+                        v-model="notifyText"
+                        placeholder="手机通知栏会弹出；手机不在线则下次打开 App 自动收到"
+                        @keyup.enter="sendNotify(m)"
+                      />
+                      <button class="btn-mini" @click="sendNotify(m)">📨 发送</button>
+                    </div>
                   </div>
                 </div>
                 <button class="btn-mini paired-refresh" @click="refreshPaired">🔄 刷新列表</button>
+              </div>
+            </div>
+
+            <!-- 软件更新 -->
+            <div class="set-row">
+              <div class="set-label">软件更新</div>
+              <input
+                class="paired-notify-input"
+                v-model="updateRepo"
+                placeholder="GitHub 仓库地址（owner/repo），如：your-name/class-manager"
+                @change="saveUpdateRepo"
+              />
+              <div class="set-btn-row" style="margin-top:8px">
+                <button class="btn-mini" @click="saveUpdateRepo">💾 保存</button>
+                <button class="btn-mini" :disabled="updateChecking" @click="checkUpdate">
+                  {{ updateChecking ? '检查中…' : '🔄 检查更新' }}
+                </button>
+              </div>
+              <label class="switch-row" style="margin-top:8px">
+                <input type="checkbox" :checked="checkUpdateOnStart" @change="toggleAutoUpdate" />
+                <span>启动时自动检查更新</span>
+              </label>
+              <div v-if="updateInfo" class="update-info">
+                <template v-if="updateInfo.ok === false">⚠️ {{ updateInfo.error }}</template>
+                <template v-else-if="updateInfo.hasUpdate">
+                  <div class="update-new">🎉 发现新版本 v{{ updateInfo.latest }}（当前 v{{ updateInfo.current }}）</div>
+                  <pre v-if="updateInfo.notes" class="update-notes">{{ updateInfo.notes }}</pre>
+                  <div class="set-btn-row">
+                    <button
+                      v-if="updateInfo.exeUrl"
+                      class="btn-mini primary"
+                      :disabled="updateDownloading"
+                      @click="downloadUpdate"
+                    >{{ updateDownloading ? `下载中 ${updateProgress}%` : '⬇️ 下载并安装（Windows）' }}</button>
+                    <button class="btn-mini" @click="openReleasePage">🌐 下载页面</button>
+                  </div>
+                  <div v-if="updateDownloading" class="progress-line"><i :style="{ width: updateProgress + '%' }"></i></div>
+                </template>
+                <template v-else>✅ 已是最新版本 v{{ updateInfo.current }}</template>
               </div>
             </div>
 
@@ -255,8 +349,7 @@
       <ClassManagement v-if="currentTab === 0" />
       <DrawQuestion v-else-if="currentTab === 1" />
       <MessageBoard v-else-if="currentTab === 2" />
-      <QuestionBank v-else-if="currentTab === 3" />
-      <TextbookCatalog v-else-if="currentTab === 4" />
+      <TextbookCatalog v-else-if="currentTab === 3" />
     </main>
 
     <!-- 全屏大屏消息（手机发消息时不管在哪个页面都弹出来） -->
@@ -321,18 +414,27 @@ import QRCode from 'qrcode'
 import ClassManagement from './views/ClassManagement.vue'
 import DrawQuestion from './views/DrawQuestion.vue'
 import MessageBoard from './views/MessageBoard.vue'
-import QuestionBank from './views/QuestionBank.vue'
 import TextbookCatalog from './views/TextbookCatalog.vue'
 import GlobalDialog from './components/GlobalDialog.vue'
 
 const currentTab = ref(0)
 const autoLaunch = ref(false)
+// 关闭按钮行为：true=隐藏到系统托盘；false=真关闭进程（需托盘退出菜单）
+const closeToTray = ref(true)
 const unreadCount = ref(0)
 
 // ========== 设置 ==========
 const settingsOpen = ref(false)
 const settingsInfo = ref({ userDataPath: '', isPortable: false, sizeMB: '0' })
 const versionInfo = ref({ version: '1.0.0', platform: '', arch: '' })
+
+// ========== 软件更新（GitHub Releases） ==========
+const updateRepo = ref('')
+const checkUpdateOnStart = ref(true)
+const updateChecking = ref(false)
+const updateInfo = ref(null)
+const updateDownloading = ref(false)
+const updateProgress = ref(0)
 
 // 外观主题（深浅色模式）
 const appearanceThemes = [
@@ -427,8 +529,7 @@ const navItems = reactive([
   { icon: '📚', text: '班级管理', index: 0, badge: 0 },
   { icon: '🎯', text: '抽背系统', index: 1, badge: 0 },
   { icon: '📺', text: '消息大屏', index: 2, badge: 0 },
-  { icon: '📝', text: '自定义题库', index: 3, badge: 0 },
-  { icon: '📖', text: '教材目录', index: 4, badge: 0 }
+  { icon: '📖', text: '教材目录', index: 3, badge: 0 }
 ])
 
 // ========== Relay 状态 ==========
@@ -451,6 +552,55 @@ const qrZoomed = ref(false)
 const pairSuccess = ref(false)
 const pairSuccessName = ref('')
 let pairSuccessTimer = null
+
+// ========== 侧边栏折叠（localStorage 记忆） ==========
+const sidebarCollapsed = ref(localStorage.getItem('cm-sidebar-collapsed') === '1')
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
+  localStorage.setItem('cm-sidebar-collapsed', sidebarCollapsed.value ? '1' : '0')
+}
+
+// ========== 手机连接模态框 ==========
+const phoneModalOpen = ref(false)
+async function openPhoneModal() {
+  phoneModalOpen.value = true
+  await nextTick()
+  genQR()
+}
+
+// 配对设备在线状态文案
+const stateLabels = {
+  active: '🟢 教室中',
+  standby: '🔵 后台在线',
+  offline: '⚪ 离线'
+}
+function stateLabel(s) { return stateLabels[s] || '⚪ 离线' }
+
+// PC → 指定配对手机发消息
+const notifyTargetId = ref('')
+const notifyText = ref('')
+function openNotify(m) {
+  if (notifyTargetId.value === m.mobileId) { notifyTargetId.value = ''; return }
+  notifyTargetId.value = m.mobileId
+  notifyText.value = ''
+  nextTick(() => document.querySelector('.paired-notify-input')?.focus())
+}
+async function sendNotify(m) {
+  const body = notifyText.value.trim()
+  if (!body) return
+  try {
+    const r = await window.api.notify.send(m.mobileId, `${className.value} 请求连接`, body)
+    if (r.ok) {
+      showToast(r.pending ? '⏳ 手机不在线，已保存，下次打开 App 自动收到' : '✓ 已送达，手机通知栏会弹出')
+      notifyText.value = ''
+      notifyTargetId.value = ''
+    } else {
+      showToast('发送失败：' + (r.error || '未知错误'), true)
+    }
+  } catch (e) {
+    showToast('发送失败：' + e.message, true)
+  }
+}
 
 function effectiveRelayUrl() {
   return netMode.value === 'public' && publicRelayUrl.value.trim()
@@ -535,6 +685,46 @@ async function setAutoLaunch(e) {
   showToast(e.target.checked ? '已开启开机自启' : '已关闭开机自启')
 }
 
+async function setCloseToTray(e) {
+  closeToTray.value = e.target.checked
+  await window.api.config.set({ closeToTray: e.target.checked })
+  showToast(e.target.checked ? '关闭窗口将隐藏到系统托盘' : '关闭窗口将直接退出')
+}
+
+// ========== 软件更新 ==========
+async function saveUpdateRepo() {
+  await window.api.config.set({ updateRepo: updateRepo.value.trim() })
+  showToast('更新仓库已保存')
+}
+async function toggleAutoUpdate(e) {
+  checkUpdateOnStart.value = e.target.checked
+  await window.api.config.set({ checkUpdateOnStart: e.target.checked })
+}
+async function checkUpdate() {
+  updateChecking.value = true
+  try {
+    if (updateRepo.value.trim()) await saveUpdateRepo()
+    updateInfo.value = await window.api.updater.check()
+    if (updateInfo.value?.ok === false) showToast(updateInfo.value.error, true)
+  } finally {
+    updateChecking.value = false
+  }
+}
+async function downloadUpdate() {
+  if (!updateInfo.value?.exeUrl) return
+  updateDownloading.value = true
+  updateProgress.value = 0
+  const r = await window.api.updater.download(updateInfo.value.exeUrl)
+  updateDownloading.value = false
+  if (!r.ok) { showToast('下载失败：' + r.error, true); return }
+  if (confirm(`安装包已下载到：\n${r.path}\n\n点击确定立即运行安装（软件将关闭），点取消稍后手动安装。`)) {
+    window.api.updater.install(r.path)
+  }
+}
+function openReleasePage() {
+  if (updateInfo.value?.releaseUrl) window.api.updater.openExternal(updateInfo.value.releaseUrl)
+}
+
 // ========== caption（手机消息弹窗） ==========
 const caption = ref({ show: false, content: '', sender: '', time: '' })
 function closeCaption() { caption.value.show = false }
@@ -549,9 +739,10 @@ function hueOf(name) {
   return Math.abs(h) % 360
 }
 function showBigMsg(data) {
-  // 来消息时自动关闭所有遮挡弹窗（QR放大、设置模态框、悬浮通知）
+  // 来消息时自动关闭所有遮挡弹窗（QR放大、设置/手机连接模态框、悬浮通知）
   qrZoomed.value = false
   settingsOpen.value = false
+  phoneModalOpen.value = false
   caption.value.show = false
 
   bigMsg.value = {
@@ -642,6 +833,7 @@ async function savePublicRelay() {
 
 async function saveClass() {
   await window.api.config.set({ className: className.value })
+  if (relayConnected.value) genQR()
   showToast('教室名字已保存')
 }
 
@@ -669,7 +861,7 @@ async function genQR(targetCanvas = null) {
   const bg = light ? '#ffffff' : '#0d0d18'
   // 未连接时画纯背景
   if (!relayConnected.value || !pairCode.value) {
-    const size = targetCanvas ? 320 : 120
+    const size = targetCanvas ? 320 : 180
     canvas.width = size
     canvas.height = size
     const ctx = canvas.getContext('2d')
@@ -697,7 +889,7 @@ async function genQR(targetCanvas = null) {
   const qrData = `${mobileBase}?r=${encodeURIComponent(qrRelayUrl)}&d=${encodeURIComponent(deviceId.value)}&n=${encodeURIComponent(className.value)}`
   try {
     await QRCode.toCanvas(canvas, qrData, {
-      width: targetCanvas ? 320 : 120,
+      width: targetCanvas ? 320 : 180,
       margin: 1,
       errorCorrectionLevel: 'M',
       color: light
@@ -737,6 +929,11 @@ onMounted(async () => {
     // 应用外观主题
     currentAppearanceTheme.value = cfg.theme || 'system'
     applyThemeAttributes(currentAppearanceTheme.value)
+    // 关闭按钮行为
+    closeToTray.value = cfg.closeToTray !== false
+    // 更新设置
+    updateRepo.value = cfg.updateRepo || ''
+    checkUpdateOnStart.value = cfg.checkUpdateOnStart !== false
   } catch {}
 
   // 本机局域网 IP（localhost relay 时二维码用它编码手机可访问地址）
@@ -775,10 +972,21 @@ onMounted(async () => {
     showToast('连接错误：' + msg, true)
   })
   window.api.relay.onServerError((msg) => showToast('服务器：' + msg, true))
-  window.api.relay.onReconnectFailed(() => {
-    relayConnected.value = false
-    relayConnectError.value = '重连失败，请检查 Relay 地址'
-    showToast('⚠️ 自动重连失败', true)
+
+  // 更新下载进度 / 启动静默检查发现新版本
+  window.api.updater.onProgress(({ percent }) => { updateProgress.value = percent })
+  window.api.updater.onAvailable((info) => {
+    updateInfo.value = info
+    showToast(`🎉 发现新版本 v${info.latest}，可在「设置 → 软件更新」中下载`)
+  })
+  // 手机上线（进教室 / App 后台待命）
+  window.api.relay.onMobileOnline(({ mobileId, state }) => {
+    const item = pairedMobiles.value.find(m => m.mobileId === mobileId)
+    if (item) item.state = state
+  })
+  window.api.relay.onMobileOffline((mobileId) => {
+    const item = pairedMobiles.value.find(m => m.mobileId === mobileId)
+    if (item) item.state = 'offline'
   })
   // 已配对手机列表（授权名单由主进程持久化，增删后主进程会全量推送）
   window.api.relay.onPairedList((mobiles) => {
@@ -786,16 +994,12 @@ onMounted(async () => {
   })
   window.api.relay.onPairedMobile((mobile) => {
     refreshPaired()
-    // 配对成功视觉反馈：QR 上覆盖绿色成功层
+    // 配对成功：显示 overlay 动画
     pairSuccessName.value = mobile?.sender || '新手机'
     pairSuccess.value = true
-    // 6 秒内再次配对则重置计时器
+    // 6 秒内再次配对则重置
     clearTimeout(pairSuccessTimer)
-    pairSuccessTimer = setTimeout(() => {
-      pairSuccess.value = false
-      // 自动刷新新配对码 + 新二维码（配对码仅在放大二维码时可见）
-      window.api.relay.refreshCode()
-    }, 6000)
+    pairSuccessTimer = setTimeout(() => { pairSuccess.value = false }, 6000)
   })
   window.api.relay.onUnpairedMobile((mobileId) => {
     pairedMobiles.value = pairedMobiles.value.filter(m => m.mobileId !== mobileId)
@@ -845,7 +1049,148 @@ onMounted(async () => {
     linear-gradient(180deg, #0a0a1a 0%, #0d0d1e 100%);
   border-right: var(--border-soft);
   box-shadow: 2px 0 24px rgba(0,0,0,0.3);
+  transition: width 0.3s var(--ease-out), padding 0.3s var(--ease-out);
 }
+
+/* ==============================================
+   侧边栏折叠态（68px 图标栏）
+============================================== */
+.app.sidebar-collapsed .sidebar {
+  width: 68px;
+  padding: 18px 8px;
+  padding-bottom: 18px;
+  gap: 8px;
+}
+.app.sidebar-collapsed .logo { padding: 44px 0 6px; }
+.app.sidebar-collapsed .logo-title,
+.app.sidebar-collapsed .logo-sub,
+.app.sidebar-collapsed .divider { display: none; }
+.app.sidebar-collapsed .nav { gap: 6px; }
+.app.sidebar-collapsed .nav-item {
+  padding: 0;
+  height: 46px;
+  justify-content: center;
+}
+.app.sidebar-collapsed .nav-text { display: none; }
+.app.sidebar-collapsed .nav-badge {
+  position: absolute;
+  top: 5px; right: 8px;
+  min-width: 8px; height: 8px;
+  padding: 0;
+  font-size: 0;
+  border-radius: 50%;
+  border: 2px solid #0d0d1e;
+  box-shadow: 0 0 6px rgba(255,102,102,0.6);
+}
+.app.sidebar-collapsed .settings-wrap { padding-top: 0; }
+.app.sidebar-collapsed .settings-btn {
+  padding: 0;
+  height: 46px;
+  justify-content: center;
+}
+.app.sidebar-collapsed .st-label,
+.app.sidebar-collapsed .st-arrow { display: none; }
+
+/* 折叠/展开按钮（侧边栏右上角，常驻可见） */
+.sidebar-toggle {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  border-radius: 9px;
+  border: var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-sub);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 8;
+  opacity: 0.6;
+  transition: all 0.2s;
+  padding: 0;
+}
+.app.sidebar-collapsed .sidebar-toggle {
+  top: 10px;
+  right: 8px;
+}
+.sidebar-toggle:hover {
+  opacity: 1;
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  transform: scale(1.08);
+}
+
+/* ==============================================
+   手机连接入口（侧栏紧凑横条）
+============================================== */
+.side-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.side-entry:hover {
+  background: rgba(0,212,255,0.08);
+  border-color: rgba(0,212,255,0.3);
+  transform: translateX(2px);
+}
+.se-icon { font-size: 15px; filter: drop-shadow(0 0 4px rgba(0,212,255,0.3)); }
+.se-label {
+  flex: 1;
+  font-size: 12px; font-weight: 500;
+  color: var(--text-sub);
+  letter-spacing: 0.3px;
+}
+.side-entry:hover .se-label { color: var(--text-main); }
+.se-status {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,102,102,0.25);
+  background: rgba(255,102,102,0.1);
+  color: var(--danger);
+}
+.se-status.online {
+  border-color: rgba(0,255,136,0.3);
+  background: rgba(0,255,136,0.12);
+  color: var(--success, #00ff88);
+}
+.se-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(255,102,102,0.5);
+}
+.se-status.online .se-dot {
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+  animation: pillBlink 1.6s ease-in-out infinite;
+}
+.se-arrow { font-size: 16px; color: var(--text-dim); transition: transform 0.2s; }
+.side-entry:hover .se-arrow { color: var(--accent); transform: translateX(3px); }
+
+/* 折叠态：手机连接入口变 46px 图标按钮，状态收成小圆点 */
+.app.sidebar-collapsed .side-entry {
+  padding: 0;
+  height: 46px;
+  justify-content: center;
+}
+.app.sidebar-collapsed .se-label,
+.app.sidebar-collapsed .se-status-text,
+.app.sidebar-collapsed .se-arrow { display: none; }
+.app.sidebar-collapsed .se-status {
+  position: absolute;
+  top: 5px; right: 8px;
+  width: 10px; height: 10px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.app.sidebar-collapsed .se-dot { width: 8px; height: 8px; border: 2px solid #0d0d1e; }
+.app.sidebar-collapsed .side-entry { position: relative; }
 /* 侧边栏滚动条 */
 .sidebar::-webkit-scrollbar { width: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -1013,15 +1358,8 @@ onMounted(async () => {
 .nav-spacer { flex: 1; }
 
 /* ==============================================
-   连接面板（云端 Relay + 二维码）
+   连接面板（云端 Relay + 二维码，手机连接模态内复用）
 ============================================== */
-.network-card { padding: 16px; }
-.net-title {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--accent); font-weight: bold;
-  margin-bottom: 12px; letter-spacing: 0.5px;
-}
-.net-title-icon { font-size: 14px; }
 .net-status-pill {
   margin-left: auto;
   font-size: 10px; font-weight: normal;
@@ -1060,11 +1398,6 @@ onMounted(async () => {
 }
 .net-class-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
 .net-class-input:disabled { opacity: 0.6; cursor: not-allowed; }
-
-/* 侧栏 QR 单独一行，居中 */
-.net-qr-row {
-  display: flex; justify-content: center; padding: 4px 0 10px;
-}
 
 /* 配对成功 overlay（覆盖 QR canvas） */
 .pair-success-overlay {
@@ -1279,6 +1612,68 @@ onMounted(async () => {
   display: flex; flex-direction: column; gap: 14px;
 }
 
+/* ============ 手机连接模态框 ============ */
+.phone-modal {
+  width: 720px;
+  max-width: 92vw;
+}
+.phone-status-pill {
+  margin-left: 10px;
+  vertical-align: middle;
+  font-weight: bold;
+}
+.phone-body {
+  flex-direction: row;
+  align-items: stretch;
+  gap: 26px;
+  padding: 18px 26px 26px;
+}
+.phone-qr-col {
+  width: 190px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+.phone-qr-wrap {
+  width: 168px; height: 168px;
+  border-radius: 14px;
+}
+.phone-qr {
+  width: 168px; height: 168px;
+}
+.phone-pair-code {
+  font-size: 22px; font-weight: bold;
+  font-family: "SF Mono", Consolas, monospace;
+  letter-spacing: 8px;
+  padding: 4px 10px 4px 18px;
+  border-radius: 10px;
+  color: var(--text-dim);
+  background: rgba(0,212,255,0.06);
+  border: 1px solid rgba(0,212,255,0.2);
+}
+.phone-pair-code.active { color: var(--accent); }
+.phone-qr-tip {
+  font-size: 12px; color: var(--text-sub);
+  max-width: 190px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.phone-paired {
+  font-size: 10.5px; color: var(--success, #00c878);
+  text-align: center; line-height: 1.5;
+}
+.phone-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.phone-form .net-class-row { margin-bottom: 0; }
+.phone-form .net-mode { margin-bottom: 0; }
+.phone-form .net-actions { margin-top: auto; }
+
 /* ============ QR 放大模态框 ============ */
 .qr-fullscreen {
   position: fixed !important;
@@ -1433,7 +1828,7 @@ html[data-theme='light'] .theme-btn.active { background: rgba(0,184,212,0.1); bo
 .paired-empty-icon { font-size: 18px; opacity: 0.6; }
 .paired-list { display: flex; flex-direction: column; gap: 6px; }
 .paired-item {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 8px 10px;
   background: var(--surface-2);
   border: var(--border-medium);
@@ -1462,12 +1857,42 @@ html[data-theme='light'] .theme-btn.active { background: rgba(0,184,212,0.1); bo
   background: var(--text-dim);
   display: inline-block;
 }
+.paired-dot.active {
+  background: var(--success);
+  box-shadow: 0 0 6px rgba(0,255,136,0.6);
+}
+.paired-dot.standby {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(0,212,255,0.6);
+}
+/* 兼容旧类名 */
 .paired-dot.online {
   background: var(--success);
   box-shadow: 0 0 6px rgba(0,255,136,0.6);
 }
 .paired-sep { margin: 0 2px; opacity: 0.5; }
+.paired-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.paired-msg { min-width: 64px; }
 .paired-remove { flex: 0 0 auto; min-width: 60px; }
+.paired-notify-box {
+  flex: 1 1 100%;
+  display: flex; gap: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-soft);
+}
+.paired-notify-input {
+  flex: 1; min-width: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-main);
+  background: var(--surface-1);
+  border: var(--border-medium);
+  border-radius: 8px;
+}
+.paired-notify-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
 .paired-refresh {
   margin-top: 2px;
   background: rgba(0,212,255,0.06) !important;
@@ -1477,6 +1902,21 @@ html[data-theme='light'] .theme-btn.active { background: rgba(0,184,212,0.1); bo
   background: rgba(0,212,255,0.12) !important;
 }
 .paired-refresh:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 软件更新区 */
+.set-label + .paired-notify-input { display: block; width: 100%; padding: 9px 12px; }
+.update-info { margin-top: 10px; font-size: 12px; color: var(--text-sub); line-height: 1.7; }
+.update-new { color: var(--accent); font-weight: 600; margin-bottom: 6px; }
+.update-notes {
+  margin: 6px 0; padding: 10px 12px; max-height: 160px; overflow-y: auto;
+  background: var(--surface-1); border: var(--border-medium); border-radius: 10px;
+  font-family: inherit; font-size: 12px; line-height: 1.7; white-space: pre-wrap;
+  color: var(--text-sub);
+}
+.progress-line { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin-top: 8px; }
+.progress-line > i { display: block; height: 100%; background: var(--accent-gradient); transition: width .25s; }
+.btn-mini.primary { background: var(--accent-gradient); color: #fff; border: none; }
+.btn-mini.primary:disabled { opacity: .6; cursor: not-allowed; }
 
 /* 浅色模式适配：已配对列表 */
 html[data-theme='light'] .btn-mini {
@@ -1658,6 +2098,10 @@ html[data-theme='light'] .settings-btn .st-icon { color: var(--accent); }
 .switch-row input[type="checkbox"] {
   accent-color: var(--accent);
   width: 14px; height: 14px;
+}
+.set-hint {
+  font-size: 11px; color: var(--text-dim);
+  line-height: 1.5; padding-left: 2px;
 }
 
 /* modal 过渡 */
@@ -1892,9 +2336,63 @@ html[data-theme-mode='light'] .settings-btn:hover {
 html[data-theme-mode='light'] .settings-btn .st-label { color: #1a1a2e !important; }
 html[data-theme-mode='light'] .settings-btn .st-arrow { color: #8a8a9e !important; }
 
-/* ---- 手机连接卡 ---- */
-html[data-theme-mode='light'] .net-title { color: #1a1a2e !important; }
-html[data-theme-mode='light'] .net-title-icon { color: var(--accent) !important; }
+/* ---- 手机连接侧栏入口 ---- */
+html[data-theme-mode='light'] .side-entry {
+  background: linear-gradient(145deg, #f0f2f7, #e2e6ed) !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  color: #1a1a2e !important;
+}
+html[data-theme-mode='light'] .side-entry:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 4px 12px rgba(0,184,212,0.18) !important;
+  background: rgba(0,184,212,0.08) !important;
+}
+html[data-theme-mode='light'] .side-entry .se-label { color: #1a1a2e !important; }
+html[data-theme-mode='light'] .se-icon { filter: none !important; }
+html[data-theme-mode='light'] .se-status {
+  background: rgba(255,71,87,0.08) !important;
+  border-color: rgba(255,71,87,0.3) !important;
+  color: #e5484d !important;
+}
+html[data-theme-mode='light'] .se-status.online {
+  background: rgba(0,196,120,0.1) !important;
+  border-color: rgba(0,196,120,0.32) !important;
+  color: #00a862 !important;
+}
+html[data-theme-mode='light'] .se-dot { background: #e5484d !important; box-shadow: none !important; }
+html[data-theme-mode='light'] .se-status.online .se-dot { background: #00c878 !important; box-shadow: 0 0 6px rgba(0,200,120,0.5) !important; }
+html[data-theme-mode='light'] .se-arrow { color: #8a8a9e !important; }
+html[data-theme-mode='light'] .sidebar-toggle {
+  background: #fff !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: #6a6a7e !important;
+}
+/* 折叠态 badge/状态点的描边跟随浅色侧栏底色 */
+html[data-theme-mode='light'] .app.sidebar-collapsed .nav-badge,
+html[data-theme-mode='light'] .app.sidebar-collapsed .se-dot { border-color: #f0f2f6 !important; }
+
+/* ---- 手机连接模态框（浅色强制白底高对比） ---- */
+html[data-theme-mode='light'] .phone-modal {
+  background: #fff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 24px 70px rgba(20,30,60,0.22) !important;
+}
+html[data-theme-mode='light'] .phone-modal .modal-header h2 {
+  color: #1a1a2e !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+}
+html[data-theme-mode='light'] .phone-pair-code {
+  background: rgba(0,184,212,0.06) !important;
+  border-color: rgba(0,184,212,0.25) !important;
+  color: #8a8a9e !important;
+}
+html[data-theme-mode='light'] .phone-pair-code.active { color: #0097b8 !important; }
+html[data-theme-mode='light'] .phone-qr-tip { color: #6a6a7e !important; }
+html[data-theme-mode='light'] .phone-paired { color: #00a862 !important; }
+
+/* ---- 手机连接模态内表单 ---- */
 html[data-theme-mode='light'] .net-label,
 html[data-theme-mode='light'] .net-class-row { color: #4a4a5e !important; }
 html[data-theme-mode='light'] .net-class-input {
