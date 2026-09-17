@@ -131,13 +131,13 @@
       </div>
     </div>
 
-    <!-- ========== 学科 & 题目 ========== -->
+    <!-- ========== 学科 ========== -->
     <div class="subject-section card">
       <div class="col-header">
         <div class="col-title">
-          <span class="col-icon">📖</span>
-          <span>学科 & 题目</span>
-          <span v-if="selectedGrade" class="hint-label">绑定 {{ gradeName }}</span>
+          <span class="col-icon">🔖</span>
+          <span>学科设置</span>
+          <span v-if="selectedGrade" class="hint-label">绑定 {{ gradeName }} · 抽背篇目来自教材目录</span>
         </div>
         <button class="primary sm" :disabled="!selectedGrade" @click="openSubjectDialog()">+ 学科</button>
       </div>
@@ -164,61 +164,8 @@
           </div>
         </div>
         <div v-else class="empty-subject">该年级暂无学科，点击右上角新增</div>
-
-        <div v-if="selectedSubject" class="questions">
-          <div class="col-header">
-            <h4 class="question-section-title">📋 {{ currentSubjectName }} · 题目</h4>
-            <button class="primary sm" @click="openQuestionDialog()">+ 新增题目</button>
-          </div>
-          <div class="table-wrap">
-            <table class="question-table">
-              <thead>
-                <tr>
-                  <th style="width:56px">权重</th>
-                  <th style="width:130px">所属单元</th>
-                  <th>标题</th>
-                  <th>内容</th>
-                  <th style="width:120px">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="q in questions" :key="q.id">
-                  <td>
-                    <div class="weight-control">
-                      <button class="w-btn" @click="changeQuestionWeight(q, -1)">−</button>
-                      <span class="w-val" :class="{ high: q.weight > 1 }">{{ q.weight || 1 }}</span>
-                      <button class="w-btn" @click="changeQuestionWeight(q, 1)">+</button>
-                    </div>
-                  </td>
-                  <td>
-                    <span v-if="q.unit" class="q-unit-pill">{{ q.unit }}</span>
-                    <span v-else class="q-unit-none">未分组</span>
-                  </td>
-                  <td class="td-title">
-                    {{ q.title || '(无标题)' }}
-                    <span v-if="isFromCatalog(q)" class="from-catalog-badge" title="题目本身无原文，内容列显示的是教材目录中的对应原文">📖</span>
-                  </td>
-                  <td class="td-content">
-                    <template v-if="questionContent(q)">{{ questionContent(q) }}</template>
-                    <span v-else class="td-no-content">(无内容)</span>
-                  </td>
-                  <td>
-                    <button class="icon-btn" @click="openQuestionDialog(q)">✏️</button>
-                    <button class="icon-btn danger" @click="deleteQuestion(q.id)">🗑️</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div v-if="questions.length === 0" class="table-empty">该学科暂无题目</div>
-          </div>
-        </div>
       </template>
     </div>
-
-    <!-- 已有单元候选（输入单元时下拉选择，也可直接输入新名称） -->
-    <datalist id="cm-question-units">
-      <option v-for="u in unitOptions" :key="u" :value="u"></option>
-    </datalist>
 
     <!-- ========== 编辑弹窗 ========== -->
     <div v-if="editorDialog" class="dialog-overlay" @click.self="editorDialog = null">
@@ -226,14 +173,6 @@
         <div class="dialog-top-bar"></div>
         <h3>{{ editorDialog.title }}</h3>
         <div class="dialog-body">
-          <template v-if="editorDialog.showUnit">
-            <label>所属单元（抽背时按单元分组）</label>
-            <input
-              v-model="editorDialog.unit"
-              list="cm-question-units"
-              placeholder="如：第一单元，可直接输入新单元名"
-            />
-          </template>
           <label>{{ editorDialog.field1Label }}</label>
           <input v-model="editorDialog.field1" :placeholder="editorDialog.field1Label" />
           <template v-if="editorDialog.showField2">
@@ -243,14 +182,6 @@
           <template v-if="editorDialog.showField3">
             <label>{{ editorDialog.field3Label }}</label>
             <input v-model.number="editorDialog.field3" type="number" min="1" />
-          </template>
-          <template v-if="editorDialog.showTextarea">
-            <label>内容</label>
-            <textarea v-model="editorDialog.field3a" rows="4" placeholder="题目内容..."></textarea>
-            <div class="fill-catalog-row">
-              <button type="button" class="fill-catalog-btn" @click="fillFromCatalog">📖 从教材目录填入原文</button>
-              <span class="fill-catalog-hint">教材原文不会自动写入，填入后点保存才生效</span>
-            </div>
           </template>
         </div>
         <div class="dialog-actions">
@@ -275,9 +206,6 @@ const grades = ref([])
 const classes = ref([])
 const students = ref([])
 const subjects = ref([])
-const questions = ref([])
-// 教材目录（题目无原文时回退显示 / 编辑时填入）
-const catalog = ref(null)
 
 const selectedGrade = ref(null)
 const selectedClass = ref(null)
@@ -292,17 +220,6 @@ let editingId = null
 
 const gradeName = computed(() => grades.value.find(g => g.id === selectedGrade.value)?.name || '')
 const className = computed(() => classes.value.find(c => c.id === selectedClass.value)?.name || '')
-const currentSubjectName = computed(() => subjects.value.find(s => s.id === selectedSubject.value)?.name || '')
-// 该学科已使用的单元名（去重，保序），作为输入候选
-const unitOptions = computed(() => {
-  const seen = new Set()
-  const out = []
-  for (const q of questions.value) {
-    const u = (q.unit || '').trim()
-    if (u && !seen.has(u)) { seen.add(u); out.push(u) }
-  }
-  return out
-})
 
 // 分段控件的 fill 位置（根据当前激活 index 计算）
 const segmentFillStyle = computed(() => {
@@ -358,71 +275,6 @@ async function loadSubjects() {
     selectedSubject.value = subjects.value[0]?.id || null
   }
 }
-async function loadQuestions() {
-  if (!selectedSubject.value) { questions.value = []; return }
-  questions.value = await window.api.getQuestions(selectedSubject.value)
-}
-async function loadCatalog() {
-  try { catalog.value = await window.api.catalog() } catch { catalog.value = null }
-}
-
-// 题目自身无原文时，按 年级+学科+单元+标题 从教材目录匹配（同单元优先，全局兜底）
-// 兼容册别结构 {上册:{单元:[...]}} 与旧结构 {单元:[...]}
-function catalogUnitGroups(sd, unit) {
-  const VOLUME_KEYS = ['上册', '下册', '全一册']
-  const volKeys = VOLUME_KEYS.filter(v => sd[v] && typeof sd[v] === 'object' && !Array.isArray(sd[v]))
-  if (!volKeys.length) {
-    return unit && sd[unit]
-      ? [sd[unit], ...Object.entries(sd).filter(([k]) => k !== unit).map(([, v]) => v)]
-      : Object.values(sd)
-  }
-  const preferred = []
-  const rest = []
-  for (const vk of volKeys) {
-    const vol = sd[vk]
-    if (unit && vol[unit]) preferred.push(vol[unit])
-    for (const [k, arr] of Object.entries(vol)) if (k !== unit) rest.push(arr)
-  }
-  return [...preferred, ...rest]
-}
-
-function findCatalogContent(title, unit) {
-  if (!catalog.value || !title) return ''
-  const sd = catalog.value[gradeName.value]?.[currentSubjectName.value]
-  if (!sd || typeof sd !== 'object') return ''
-  const groups = catalogUnitGroups(sd, unit)
-  for (const arr of groups) {
-    if (Array.isArray(arr)) {
-      const hit = arr.find(a => a.title === title)
-      if (hit) return hit.content || ''
-    }
-  }
-  return ''
-}
-// 表格显示用：题目原文 → 教材目录原文
-function questionContent(q) {
-  if (q.content && q.content.trim()) return q.content
-  return findCatalogContent(q.title, q.unit)
-}
-function isFromCatalog(q) {
-  return !(q.content && q.content.trim()) && !!findCatalogContent(q.title, q.unit)
-}
-// 编辑弹窗：从教材目录填入原文（保存后才写入题目）
-function fillFromCatalog() {
-  const d = editorDialog.value
-  const title = d.field1.trim()
-  const unit = (d.unit || '').trim()
-  if (!title) {
-    showAlert('请先填写标题，再从教材目录匹配原文。', { title: '缺少标题', type: 'warning' })
-    return
-  }
-  const c = findCatalogContent(title, unit)
-  if (!c) {
-    showAlert(`教材目录中未找到「${title}」。请确认年级、学科、单元、标题与教材目录一致。`, { title: '未匹配到', type: 'warning' })
-    return
-  }
-  d.field3a = c
-}
 
 function selectGrade(id) { selectedGrade.value = id }
 function selectClass(id) { selectedClass.value = id }
@@ -436,7 +288,6 @@ watch(selectedGrade, async () => {
   await loadStudents()
 })
 watch(selectedClass, loadStudents)
-watch(selectedSubject, loadQuestions)
 
 // ========== 模板 ==========
 async function loadTemplates() {
@@ -515,21 +366,6 @@ function openSubjectDialog(s) {
     onSave: saveSubject
   }
 }
-function openQuestionDialog(q) {
-  editingId = q?.id || null
-  editorDialog.value = {
-    title: q ? '编辑题目' : '新增题目',
-    showUnit: true,
-    unit: q?.unit || '',
-    category: q?.category || 'recit',
-    field1Label: '标题',
-    field1: q?.title || '',
-    showTextarea: true,
-    field3Label: '抽背权重',
-    field3: q?.weight || 1,
-    onSave: saveQuestion
-  }
-}
 
 // ========== 保存 ==========
 async function saveGrade() {
@@ -585,19 +421,6 @@ async function saveSubject() {
   }
   editingId = null; editorDialog.value = null; await loadSubjects()
 }
-async function saveQuestion() {
-  const d = editorDialog.value
-  if (!selectedSubject.value) return
-  const weight = Math.max(1, parseInt(d.field3) || 1)
-  const unit = (d.unit || '').trim()
-  const category = d.category || 'recit'
-  if (editingId) {
-    await window.api.updateQuestion(editingId, d.field1.trim(), d.field3a || '', unit, category)
-  } else {
-    await window.api.addQuestion(selectedSubject.value, d.field1.trim(), d.field3a || '', unit, category)
-  }
-  editingId = null; editorDialog.value = null; await loadQuestions()
-}
 
 // ========== 删除 ==========
 async function deleteGrade(id) {
@@ -616,10 +439,6 @@ async function deleteSubject(id) {
   if (!(await showConfirm('确定删除该学科？将级联删除所有题目', { type: 'danger' }))) return
   await window.api.deleteSubject(id); await loadSubjects()
 }
-async function deleteQuestion(id) {
-  if (!(await showConfirm('确定删除该题目？', { type: 'danger' }))) return
-  await window.api.deleteQuestion(id); await loadQuestions()
-}
 
 // ========== 权重 ==========
 async function changeWeight(s, delta) {
@@ -627,15 +446,10 @@ async function changeWeight(s, delta) {
   await window.api.updateStudentWeight(s.id, newW)
   s.weight = newW
 }
-async function changeQuestionWeight(q, delta) {
-  const newW = Math.max(1, (q.weight || 1) + delta)
-  await window.api.updateQuestion(q.id, q.title, q.content, newW)
-  q.weight = newW
-}
 
 // ========== 启动 ==========
 onMounted(async () => {
-  await Promise.all([loadGrades(), loadTemplates(), loadCatalog()])
+  await Promise.all([loadGrades(), loadTemplates()])
   // 手机端改了数据 → 自动刷新
   window.api.relay.onDataChanged(() => { loadGrades().catch(() => {}) })
 })
@@ -932,71 +746,6 @@ onMounted(async () => {
 .seg-item.active .seg-close:hover { color: #fff; background: rgba(255,0,0,0.3); }
 
 .empty-subject { padding: 16px; text-align: center; color: var(--text-dim); font-size: 11px; }
-
-/* ==============================================
-   题目表格
-============================================== */
-.questions { padding: 0 16px 16px; }
-.question-section-title {
-  font-size: 12px; color: var(--text-sub);
-  font-weight: bold; letter-spacing: 0.5px;
-}
-.table-wrap {
-  border-radius: var(--radius-md);
-  border: var(--border-medium);
-  overflow: hidden;
-  background: rgba(0,0,0,0.2);
-}
-.question-table { width: 100%; border-collapse: collapse; }
-.question-table th {
-  text-align: left; padding: 12px 14px;
-  font-size: 11px; text-transform: uppercase;
-  letter-spacing: 0.8px; font-weight: bold;
-  background: linear-gradient(180deg, rgba(0,212,255,0.12), rgba(124,58,237,0.08));
-  color: var(--accent);
-  border-bottom: var(--border-medium);
-}
-.question-table td {
-  padding: 11px 14px;
-  border-bottom: var(--border-soft);
-  font-size: 12px; color: var(--text-sub);
-  transition: background 0.15s;
-}
-.question-table tbody tr:hover td {
-  background: rgba(0,212,255,0.05);
-  color: var(--text-main);
-}
-.question-table tbody tr:last-child td { border-bottom: none; }
-.td-title { color: var(--text-main); font-weight: 500; }
-.td-content {
-  max-width: 320px; overflow: hidden; text-overflow: ellipsis;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-}
-.td-no-content { color: var(--text-dim); }
-.from-catalog-badge { margin-left: 5px; font-size: 11px; }
-/* 编辑弹窗：从教材目录填入 */
-.fill-catalog-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
-.fill-catalog-btn {
-  font-size: 11px; padding: 5px 13px; border-radius: 999px;
-  background: rgba(0,212,255,0.1);
-  border: 1px solid rgba(0,212,255,0.35);
-  color: var(--accent);
-}
-.fill-catalog-btn:hover { background: var(--accent-gradient); color: #fff; border-color: transparent; }
-.fill-catalog-hint { font-size: 10px; color: var(--text-dim); }
-/* 单元胶囊 */
-.q-unit-pill {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  color: var(--accent);
-  background: rgba(0,212,255,0.1);
-  border: 1px solid rgba(0,212,255,0.28);
-  white-space: nowrap;
-}
-.q-unit-none { font-size: 11px; color: var(--text-dim); }
-.table-empty { padding: 24px; text-align: center; color: var(--text-dim); font-size: 12px; }
 
 /* ==============================================
    通用按钮

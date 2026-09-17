@@ -105,6 +105,17 @@ class AppDatabase {
       changed = true
     }
 
+    // 一次性数据清理（PRAGMA user_version 守卫）：
+    // v1 — 移除老师手动新增的自定义题（content 非空）。抽背篇目统一由教材目录提供，
+    //      教材镜像题 content 为空，不受影响。
+    const uvRow = this.query('PRAGMA user_version')
+    const userVersion = uvRow[0] ? (uvRow[0].user_version || 0) : 0
+    if (userVersion < 1) {
+      this.db.run("DELETE FROM questions WHERE content IS NOT NULL AND TRIM(content) != ''")
+      this.db.run('PRAGMA user_version = 1')
+      changed = true
+    }
+
     return changed
   }
 
