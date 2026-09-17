@@ -460,12 +460,30 @@ function selectAll(on) {
   selectedIds.value = on ? new Set(questionPool.value.map(q => q.id)) : new Set()
 }
 
-// ========== 教材目录回退 ==========
+// ========== 教材目录回退（兼容册别结构 {上册:{单元:[]}} 与旧结构 {单元:[]}） ==========
+function catalogUnitGroups(sd, unit) {
+  const VOLUME_KEYS = ['上册', '下册', '全一册']
+  const volKeys = VOLUME_KEYS.filter(v => sd[v] && typeof sd[v] === 'object' && !Array.isArray(sd[v]))
+  if (!volKeys.length) {
+    return unit && sd[unit]
+      ? [sd[unit], ...Object.entries(sd).filter(([k]) => k !== unit).map(([, v]) => v)]
+      : Object.values(sd)
+  }
+  const preferred = []
+  const rest = []
+  for (const vk of volKeys) {
+    const vol = sd[vk]
+    if (unit && vol[unit]) preferred.push(vol[unit])
+    for (const [k, arr] of Object.entries(vol)) if (k !== unit) rest.push(arr)
+  }
+  return [...preferred, ...rest]
+}
+
 function findCatalogContent(title, unit) {
   if (!catalog.value || !title) return ''
   const sd = catalog.value[gradeName.value]?.[subjectName.value]
   if (!sd || typeof sd !== 'object') return ''
-  const groups = unit && sd[unit] ? [sd[unit], ...Object.entries(sd).filter(([k]) => k !== unit).map(([, v]) => v)] : Object.values(sd)
+  const groups = catalogUnitGroups(sd, unit)
   for (const arr of groups) {
     if (Array.isArray(arr)) {
       const hit = arr.find(a => a.title === title)

@@ -80,24 +80,38 @@
             <button class="modal-close" @click="phoneModalOpen = false">✕</button>
           </div>
           <div class="modal-body phone-body">
-            <!-- 左：二维码 + 配对码 -->
+            <!-- 左：二维码 + 配对码（配对成功后自动折叠为状态条） -->
             <div class="phone-qr-col">
-              <div class="net-qr-wrap phone-qr-wrap" @click="qrZoomed = true" title="点击放大查看配对码">
-                <canvas ref="qrCanvas" class="net-qr phone-qr"></canvas>
-                <div v-if="!relayConnected" class="net-qr-placeholder">🔌<br>未连接</div>
-                <!-- 配对成功 overlay -->
-                <transition name="pair-anim">
-                  <div v-if="pairSuccess" class="pair-success-overlay" @click.stop>
-                    <div class="pair-success-check">✅</div>
-                    <div class="pair-success-text">📱 {{ pairSuccessName }}</div>
-                    <div class="pair-success-sub">配对成功</div>
+              <transition name="qrc-fold" mode="out-in">
+                <!-- 折叠态：配对状态条 -->
+                <div v-if="qrCollapsed" key="collapsed" class="qr-collapsed-bar" @click="expandQr" title="点击展开二维码">
+                  <div class="qc-check">✅</div>
+                  <div class="qc-info">
+                    <div class="qc-title">已与「{{ pairSuccessName }}」配对</div>
+                    <div class="qc-sub">共 {{ pairedMobiles.length }} 台设备在线 · 新配对码已生成</div>
                   </div>
-                </transition>
-                <div class="net-qr-hint" v-if="relayConnected && !pairSuccess">🔍 点击放大 · 查看配对码</div>
-              </div>
-              <div class="phone-pair-code" :class="{ active: relayConnected }">{{ displayCode }}</div>
-              <div class="phone-qr-tip">🏫 {{ className }}</div>
-              <div v-if="pairedMobiles.length" class="phone-paired">✅ 已配对 {{ pairedMobiles.length }} 台手机 · 管理在「设置」中</div>
+                  <div class="qc-btn">🔍 展开二维码</div>
+                </div>
+                <!-- 展开态：二维码 + 配对码 -->
+                <div v-else key="expanded" class="qr-expanded">
+                  <div class="net-qr-wrap phone-qr-wrap" @click="qrZoomed = true" title="点击放大查看配对码">
+                    <canvas ref="qrCanvas" class="net-qr phone-qr"></canvas>
+                    <div v-if="!relayConnected" class="net-qr-placeholder">🔌<br>未连接</div>
+                    <!-- 配对成功 overlay -->
+                    <transition name="pair-anim">
+                      <div v-if="pairSuccess" class="pair-success-overlay" @click.stop>
+                        <div class="pair-success-check">✅</div>
+                        <div class="pair-success-text">📱 {{ pairSuccessName }}</div>
+                        <div class="pair-success-sub">配对成功</div>
+                      </div>
+                    </transition>
+                    <div class="net-qr-hint" v-if="relayConnected && !pairSuccess">🔍 点击放大 · 查看配对码</div>
+                  </div>
+                  <div class="phone-pair-code" :class="{ active: relayConnected }">{{ displayCode }}</div>
+                  <div class="phone-qr-tip">🏫 {{ className }}</div>
+                </div>
+              </transition>
+              <div v-if="pairedMobiles.length && !qrCollapsed" class="phone-paired">✅ 已配对 {{ pairedMobiles.length }} 台手机 · 管理在「设置」中</div>
             </div>
 
             <!-- 右：设置 -->
@@ -350,6 +364,7 @@
       <DrawQuestion v-else-if="currentTab === 1" />
       <MessageBoard v-else-if="currentTab === 2" />
       <TextbookCatalog v-else-if="currentTab === 3" />
+      <Dictation v-else-if="currentTab === 4" />
     </main>
 
     <!-- 全屏大屏消息（手机发消息时不管在哪个页面都弹出来） -->
@@ -415,6 +430,7 @@ import ClassManagement from './views/ClassManagement.vue'
 import DrawQuestion from './views/DrawQuestion.vue'
 import MessageBoard from './views/MessageBoard.vue'
 import TextbookCatalog from './views/TextbookCatalog.vue'
+import Dictation from './views/Dictation.vue'
 import GlobalDialog from './components/GlobalDialog.vue'
 
 const currentTab = ref(0)
@@ -529,7 +545,8 @@ const navItems = reactive([
   { icon: '📚', text: '班级管理', index: 0, badge: 0 },
   { icon: '🎯', text: '抽背系统', index: 1, badge: 0 },
   { icon: '📺', text: '消息大屏', index: 2, badge: 0 },
-  { icon: '📖', text: '教材目录', index: 3, badge: 0 }
+  { icon: '📖', text: '教材目录', index: 3, badge: 0 },
+  { icon: '✍️', text: '单词听写', index: 4, badge: 0 }
 ])
 
 // ========== Relay 状态 ==========
@@ -552,6 +569,13 @@ const qrZoomed = ref(false)
 const pairSuccess = ref(false)
 const pairSuccessName = ref('')
 let pairSuccessTimer = null
+// 二维码折叠态：真实配对成功并刷新配对码后自动折叠
+const qrCollapsed = ref(false)
+async function expandQr() {
+  qrCollapsed.value = false
+  await nextTick()
+  genQR()
+}
 
 // ========== 侧边栏折叠（localStorage 记忆） ==========
 const sidebarCollapsed = ref(localStorage.getItem('cm-sidebar-collapsed') === '1')
@@ -839,6 +863,10 @@ async function saveClass() {
 
 async function refreshCode() {
   await window.api.relay.refreshCode()
+  // 手动刷新意味着要给新手机扫码：展开二维码并等待新码重绘
+  qrCollapsed.value = false
+  await nextTick()
+  genQR()
   showToast('配对码已刷新')
 }
 
@@ -956,6 +984,7 @@ onMounted(async () => {
   })
   window.api.relay.onDisconnected(() => {
     relayConnected.value = false
+    qrCollapsed.value = false   // 重连后是新会话/新码，恢复展示二维码
     showToast('中继已断开（自动重连中）')
   })
   window.api.relay.onRegistered((info) => {
@@ -993,7 +1022,7 @@ onMounted(async () => {
   window.api.relay.onPairedList((mobiles) => {
     pairedMobiles.value = Array.isArray(mobiles) ? mobiles : []
   })
-  window.api.relay.onPairedMobile((mobile) => {
+  window.api.relay.onPairedMobile(async (mobile) => {
     refreshPaired()
     // 配对成功：显示 overlay 动画
     pairSuccessName.value = mobile?.sender || '新手机'
@@ -1001,9 +1030,21 @@ onMounted(async () => {
     // 6 秒内再次配对则重置
     clearTimeout(pairSuccessTimer)
     pairSuccessTimer = setTimeout(() => { pairSuccess.value = false }, 6000)
+    // 浏览器临时进入(persist===false)：不刷新配对码、不折叠
+    // （临时手机断线重连仍需复用当前配对码，见 mobile resume 逻辑）
+    if (mobile?.persist === false) return
+    // 真实 App 配对：先静默刷新一次配对码（旧码立即失效，watch(pairCode) 会自动重绘 QR）
+    try { await window.api.relay.refreshCode() } catch {}
+    // 等新码事件回来并重绘完成后，折叠二维码为状态条
+    setTimeout(() => {
+      qrCollapsed.value = true
+      pairSuccess.value = false
+    }, 1400)
   })
   window.api.relay.onUnpairedMobile((mobileId) => {
     pairedMobiles.value = pairedMobiles.value.filter(m => m.mobileId !== mobileId)
+    // 所有授权设备都解除后，恢复二维码展示，方便重新扫码
+    if (!pairedMobiles.value.length) qrCollapsed.value = false
   })
 
   // 初始生成空白 QR
@@ -1664,6 +1705,66 @@ onMounted(async () => {
   font-size: 10.5px; color: var(--success, #00c878);
   text-align: center; line-height: 1.5;
 }
+
+/* ============ 二维码折叠状态条（配对成功后） ============ */
+.qr-expanded {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+.qr-collapsed-bar {
+  width: 190px;
+  box-sizing: border-box;
+  padding: 16px 12px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(0,200,120,0.12), rgba(0,212,255,0.08));
+  border: 1.5px solid rgba(0,200,120,0.38);
+  box-shadow: 0 0 18px rgba(0,200,120,0.16), inset 0 0 12px rgba(0,200,120,0.06);
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.25s var(--ease-bounce);
+}
+.qr-collapsed-bar:hover {
+  border-color: var(--success, #00c878);
+  transform: scale(1.035);
+  box-shadow: 0 0 28px rgba(0,200,120,0.32), inset 0 0 14px rgba(0,200,120,0.1);
+}
+.qc-check {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: linear-gradient(135deg, #00d27a, #00b894);
+  color: #fff; font-size: 22px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(0,200,120,0.4);
+  animation: checkPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.qc-info { display: flex; flex-direction: column; gap: 3px; }
+.qc-title {
+  font-size: 12.5px; font-weight: bold; color: var(--text-main);
+  max-width: 162px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.qc-sub { font-size: 10.5px; color: var(--text-sub); line-height: 1.4; }
+.qc-btn {
+  margin-top: 2px;
+  font-size: 11px; color: var(--accent);
+  padding: 4px 12px; border-radius: 999px;
+  background: rgba(0,212,255,0.09);
+  border: 1px solid rgba(0,212,255,0.28);
+  transition: all 0.25s;
+}
+.qr-collapsed-bar:hover .qc-btn {
+  background: rgba(0,212,255,0.18);
+  box-shadow: 0 0 10px rgba(0,212,255,0.3);
+}
+/* 折叠/展开切换过渡 */
+.qrc-fold-enter-active { transition: all 0.38s var(--ease-bounce); }
+.qrc-fold-leave-active { transition: all 0.22s ease-in; }
+.qrc-fold-enter-from { opacity: 0; transform: scale(0.88) translateY(10px); }
+.qrc-fold-leave-to { opacity: 0; transform: scale(0.94) translateY(-6px); }
 .phone-form {
   flex: 1;
   min-width: 0;

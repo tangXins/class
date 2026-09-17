@@ -53,6 +53,22 @@
           </div>
         </div>
 
+        <!-- 册别（仅该学科分上/下册时显示） -->
+        <div class="seg seg-vols" v-if="volumeNames.length > 1">
+          <div class="seg-label">册别</div>
+          <div class="vol-grid">
+            <div
+              v-for="v in volumeNames"
+              :key="v"
+              class="v-chip"
+              :class="{ active: currentVolume === v }"
+              @click="selectVolume(v)"
+            >
+              <span class="v-txt">{{ v }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- 单元 -->
         <div class="seg seg-units">
           <div class="seg-label">单元</div>
@@ -80,6 +96,10 @@
             <span>{{ currentGrade || '未选择' }}</span>
             <span class="c-sep">›</span>
             <span>{{ currentSubject }}</span>
+            <template v-if="currentVolume">
+              <span class="c-sep">›</span>
+              <span>{{ currentVolume }}</span>
+            </template>
             <span class="c-sep">›</span>
             <b>{{ currentUnit || '—' }}</b>
           </div>
@@ -170,8 +190,12 @@ const SUBJECT_DEFS = [
 const catalog = ref(null)
 const currentGrade = ref('')
 const currentSubject = ref('语文')
+const currentVolume = ref('')   // 册别：上册 / 下册 / 全一册；旧结构为空串
 const currentUnit = ref('')
 const articleIdx = ref(0)
+
+// 支持的册别键（顺序即展示顺序）
+const VOLUME_KEYS = ['上册', '下册', '全一册']
 
 const fontSize = ref(18)
 const fontFace = ref('yahei')
@@ -192,10 +216,23 @@ const subjectData = computed(() => {
   return sd && typeof sd === 'object' ? sd : null
 })
 
+// 册别解析：新结构 {上册:{单元:[]}, 下册:{...}}；旧结构 {单元:[]} 视为单册（name 为 ''）
+const volumes = computed(() => {
+  const sd = subjectData.value
+  if (!sd) return []
+  const hit = VOLUME_KEYS.filter(v => sd[v] && typeof sd[v] === 'object' && !Array.isArray(sd[v]))
+  if (hit.length) return hit.map(name => ({ name, units: sd[name] }))
+  return [{ name: '', units: sd }]
+})
+const volumeNames = computed(() => volumes.value.map(v => v.name).filter(Boolean))
+const volumeData = computed(
+  () => volumes.value.find(v => v.name === currentVolume.value)?.units || null
+)
+
 // 单元列表（保序，只保留非空数组单元）
 const units = computed(() => {
-  if (!subjectData.value) return []
-  return Object.entries(subjectData.value)
+  if (!volumeData.value) return []
+  return Object.entries(volumeData.value)
     .filter(([, v]) => Array.isArray(v) && v.length)
     .map(([name, articles]) => ({ name, articles }))
 })
@@ -238,12 +275,24 @@ function selectGrade(g) {
     const first = SUBJECT_DEFS.find(s => hasSubject(s.name))
     currentSubject.value = first?.name || '语文'
   }
+  ensureVolume()
   ensureUnit()
 }
 function selectSubject(name) {
   if (!hasSubject(name)) return
   currentSubject.value = name
+  ensureVolume()
   ensureUnit()
+}
+function selectVolume(v) {
+  if (currentVolume.value === v) return
+  currentVolume.value = v
+  ensureUnit()
+}
+function ensureVolume() {
+  if (!volumes.value.find(v => v.name === currentVolume.value)) {
+    currentVolume.value = volumes.value[0]?.name || ''
+  }
 }
 function selectUnit(u) {
   currentUnit.value = u
@@ -305,6 +354,7 @@ onMounted(async () => {
     const first = SUBJECT_DEFS.find(s => hasSubject(s.name))
     currentSubject.value = first?.name || '语文'
   }
+  ensureVolume()
   ensureUnit()
   document.addEventListener('keydown', onKey)
 })
@@ -408,6 +458,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .s-chip.off { opacity: 0.32; cursor: not-allowed; }
 .s-chip.off .s-x { display: inline; }
 
+/* 册别芯片 */
+.vol-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.v-chip {
+  display: flex; align-items: center; justify-content: center;
+  padding: 8px 4px; border-radius: 10px; cursor: pointer;
+  background: var(--inset); border: 1px solid var(--line);
+  font-size: 11.5px; color: var(--t2);
+  transition: all 0.22s var(--ease-out, ease);
+}
+.v-chip:hover { border-color: rgba(0,212,255,0.4); color: var(--t1); }
+.v-chip.active {
+  background: var(--grad); color: #fff; font-weight: 700;
+  border-color: transparent;
+  box-shadow: 0 5px 14px rgba(60,120,220,0.32);
+}
+
 /* 单元行 */
 .u-row {
   position: relative;
@@ -435,7 +501,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .rail.collapsed .s-txt,
 .rail.collapsed .u-txt,
 .rail.collapsed .u-cnt,
-.rail.collapsed .seg-units { display: none; }
+.rail.collapsed .seg-units,
+.rail.collapsed .seg-vols { display: none; }
 .rail.collapsed .g-row { justify-content: center; padding: 7px 4px; }
 .rail.collapsed .g-txt { display: none; }
 .rail.collapsed .g-short { display: inline; }
@@ -607,7 +674,7 @@ html[data-theme-mode='light'] .read.eye .a-text { color: #4a4030; }
 /* ========== 响应式 ========== */
 @media (max-width: 900px) {
   .rail { width: 64px; padding: 18px 8px; align-items: center; }
-  .rail .seg-label, .rail .s-txt, .rail .u-txt, .rail .u-cnt, .rail .seg-units, .rail .brand-txt { display: none; }
+  .rail .seg-label, .rail .s-txt, .rail .u-txt, .rail .u-cnt, .rail .seg-units, .rail .seg-vols, .rail .brand-txt { display: none; }
   .rail .g-row { justify-content: center; padding: 7px 4px; }
   .rail .g-txt { display: none; }
   .rail .g-short { display: inline; }

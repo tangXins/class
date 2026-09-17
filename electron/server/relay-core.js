@@ -540,6 +540,25 @@ WebSocket: ws://${req.headers.host}/relay
               break
             }
 
+            // 手机在教室内发送聊天消息（区别于 join：join 一辈子一次，
+            // chat 可随时发；临时浏览器无需再次提供配对码，连接已通过 join 校验）
+            case 'chat': {
+              const room = ws.hostDeviceId ? rooms.get(ws.hostDeviceId) : null
+              if (!room) return ws.send(json({ type: 'error', msg: '教室不在线' }))
+              const inRoom = room.active.has(ws.mobileId) || room.temporary.has(ws.mobileId)
+              if (!inRoom) return ws.send(json({ type: 'error', msg: '请先进入教室', needPair: true }))
+              const content = String(msg.content || '').slice(0, 5000)
+              if (!content.trim()) return
+              notifyHost(room, {
+                type: 'message',
+                mobileId: ws.mobileId,
+                sender: ws.mobileSender || '手机',
+                content
+              })
+              ws.send(json({ type: 'chatOk' }))
+              break
+            }
+
             // 手机发起数据请求（班级管理 CRUD / 教材目录等）→ 转发主机
             case 'call': {
               const room = ws.hostDeviceId ? rooms.get(ws.hostDeviceId) : null

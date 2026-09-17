@@ -3,360 +3,378 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0b0b16">
+<meta name="theme-color" content="#07070f">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
+<meta name="Expires" content="0">
 <title>班级管理大师 · 手机端</title>
 <style>
-  :root {
-    --bg: #0b0b16;
-    --bg2: #14142a;
-    --card: rgba(30,30,54,0.82);
-    --card-solid: #1b1b34;
-    --line: rgba(255,255,255,0.08);
-    --accent: #00d4ff;
-    --accent2: #7c3aed;
-    --accent-gradient: linear-gradient(135deg,#00d4ff,#7c3aed);
-    --text: #e9eaf4;
-    --text-dim: #8a8aa3;
-    --danger: #ff4d6d;
-    --success: #00e08a;
-    --warning: #ffb020;
-    --radius: 16px;
+  :root{
+    --bg:#07070f; --bg2:#0e0e1f; --card:rgba(26,26,48,.72); --card-solid:#17172e;
+    --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.12);
+    --accent:#00d4ff; --accent2:#7c3aed; --accent3:#ec4899;
+    --grad:linear-gradient(135deg,#00d4ff 0%,#7c3aed 100%);
+    --grad-pink:linear-gradient(135deg,#7c3aed 0%,#ec4899 100%);
+    --text:#eef0ff; --dim:#8b8da8; --faint:#5c5e78;
+    --ok:#00e08a; --warn:#ffb020; --danger:#ff4d6d;
+    --r-lg:20px; --r-md:14px; --r-sm:10px;
+    --shadow:0 12px 40px rgba(0,0,0,.45);
+    --ease:cubic-bezier(.22,1,.36,1);
   }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "微软雅黑", sans-serif;
-    -webkit-font-smoothing: antialiased; }
-  body {
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);overflow-x:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","微软雅黑",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
     background:
-      radial-gradient(900px 480px at -15% -10%, rgba(124,58,237,0.28), transparent 60%),
-      radial-gradient(700px 420px at 115% 0%, rgba(0,212,255,0.20), transparent 55%),
-      var(--bg);
-    min-height: 100dvh;
+      radial-gradient(560px 380px at -10% -8%,rgba(124,58,237,.30),transparent 60%),
+      radial-gradient(520px 360px at 112% -4%,rgba(0,212,255,.20),transparent 55%),
+      radial-gradient(700px 500px at 50% 120%,rgba(236,72,153,.10),transparent 60%);
   }
-  button { font-family: inherit; }
+  button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
+  input,textarea,select{font-family:inherit}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-thumb{background:linear-gradient(var(--accent),var(--accent2));border-radius:4px}
 
-  /* ============ App 框架 ============ */
-  #app { max-width: 540px; margin: 0 auto; min-height: 100dvh; position: relative;
-    padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  #app{position:relative;z-index:1;max-width:540px;margin:0 auto;min-height:100dvh}
 
-  .appbar {
-    position: sticky; top: 0; z-index: 40;
-    display: flex; align-items: center; gap: 10px;
-    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-    background: rgba(11,11,22,0.82); backdrop-filter: blur(18px);
-    border-bottom: 1px solid var(--line);
+  /* ================= 入口页 ================= */
+  #gate{padding:calc(40px + env(safe-area-inset-top)) 22px 40px;animation:fadeUp .5s var(--ease)}
+  .gate-brand{text-align:center;margin-bottom:26px}
+  .gate-logo{
+    width:92px;height:92px;margin:0 auto 16px;border-radius:26px;
+    background:var(--grad);display:flex;align-items:center;justify-content:center;
+    font-size:46px;box-shadow:0 16px 44px rgba(0,140,255,.35),inset 0 1px 0 rgba(255,255,255,.35);
+    animation:logoBreath 3.2s ease-in-out infinite;
   }
-  .appbar-title { font-size: 17px; font-weight: 700; letter-spacing: 1px;
-    background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .appbar-sub { font-size: 11px; color: var(--text-dim); margin-top: 1px; max-width: 130px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .conn-chip { margin-left: auto; display: flex; align-items: center; gap: 6px;
-    font-size: 11px; color: var(--text-dim);
-    background: var(--card); border: 1px solid var(--line);
-    padding: 5px 10px; border-radius: 999px; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
-  .dot.off { background: var(--text-dim); box-shadow: none; }
+  @keyframes logoBreath{0%,100%{transform:translateY(0);box-shadow:0 16px 44px rgba(0,140,255,.35),inset 0 1px 0 rgba(255,255,255,.35)}50%{transform:translateY(-5px);box-shadow:0 22px 56px rgba(124,58,237,.5),inset 0 1px 0 rgba(255,255,255,.35)}}
+  .gate-brand h1{font-size:27px;font-weight:800;letter-spacing:1px;
+    background:linear-gradient(90deg,#7fe9ff,#b79bff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .gate-brand p{margin-top:7px;font-size:12.5px;color:var(--dim);letter-spacing:.5px}
 
-  .page { display: none; padding: 14px 14px 24px; animation: fadeUp .25s ease; }
-  .page.active { display: block; }
-  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .gate-sec-label{font-size:11.5px;color:var(--faint);margin:18px 4px 9px;display:flex;align-items:center;gap:7px;letter-spacing:.5px}
+  .gate-sec-label::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
 
-  /* ============ 通用卡片/按钮/输入 ============ */
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 14px; margin-bottom: 12px; backdrop-filter: blur(10px); }
-  .card-title { font-size: 13px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .card-title .count { font-size: 11px; color: var(--accent); background: rgba(0,212,255,.12);
-    border: 1px solid rgba(0,212,255,.3); padding: 1px 8px; border-radius: 999px; font-weight: 400; }
-  .card-title .sp { margin-left: auto; }
-  .btn { border: none; border-radius: 12px; padding: 11px 16px; font-size: 14px; font-weight: 600; cursor: pointer; color: #fff;
-    background: var(--card-solid); border: 1px solid var(--line); transition: transform .12s; }
-  .btn:active { transform: scale(.96); }
-  .btn-primary { background: var(--accent-gradient); border: none; box-shadow: 0 6px 20px rgba(124,58,237,.4); }
-  .btn-ghost { background: rgba(255,255,255,.06); }
-  .btn-danger { background: rgba(255,77,109,.14); border-color: rgba(255,77,109,.4); color: #ff8fa3; }
-  .btn-block { width: 100%; }
-  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 9px; }
-  .ipt, select.ipt, textarea.ipt {
-    width: 100%; background: rgba(0,0,0,.32); border: 1px solid var(--line);
-    border-radius: 10px; padding: 11px 13px; color: var(--text); font-size: 14px; outline: none;
+  .room-card{
+    display:flex;align-items:center;gap:13px;padding:14px;border-radius:var(--r-md);
+    background:var(--card);border:1px solid var(--line);backdrop-filter:blur(12px);
+    margin-bottom:10px;position:relative;overflow:hidden;
+    transition:transform .2s var(--ease),border-color .2s;
   }
-  .ipt:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,.14); }
-  textarea.ipt { resize: none; font-family: inherit; }
-  .field { margin-bottom: 12px; }
-  .field > label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
-  .empty { text-align: center; padding: 34px 18px; color: var(--text-dim); font-size: 13px; }
-  .empty .ico { font-size: 42px; display: block; margin-bottom: 10px; opacity: .75; }
-  .empty .tip { font-size: 11px; opacity: .7; margin-top: 8px; line-height: 1.7; }
-
-  /* ============ 底部 Tab ============ */
-  .tabbar {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
-    width: 100%; max-width: 540px; z-index: 50;
-    display: flex; background: rgba(10,10,22,.92); backdrop-filter: blur(20px);
-    border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+  .room-card:active{transform:scale(.975)}
+  .room-card::before{content:"";position:absolute;left:0;top:14%;bottom:14%;width:3px;border-radius:3px;background:var(--grad)}
+  .room-card.offline{opacity:.55}
+  .room-card.offline::before{background:#444}
+  .room-ava{
+    width:44px;height:44px;border-radius:13px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:22px;background:linear-gradient(135deg,rgba(0,212,255,.18),rgba(124,58,237,.22));
+    border:1px solid var(--line2);
   }
-  .tab { flex: 1; padding: 9px 0 8px; text-align: center; font-size: 11px; color: var(--text-dim); cursor: pointer; position: relative; }
-  .tab .ti { font-size: 21px; display: block; line-height: 1.2; filter: grayscale(.4); transition: transform .2s; }
-  .tab.active { color: var(--accent); }
-  .tab.active .ti { transform: translateY(-1px) scale(1.08); filter: none; }
-  .tab .badge {
-    position: absolute; top: 3px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px;
-    background: var(--danger); color: #fff; border-radius: 999px; font-size: 10px; line-height: 16px; font-weight: 700;
+  .room-info{flex:1;min-width:0}
+  .room-name{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .room-meta{font-size:11.5px;color:var(--dim);margin-top:4px;display:flex;align-items:center;gap:6px}
+  .od{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(0,224,138,.6);animation:odPulse 1.8s infinite}
+  .od.off{background:#555;animation:none;box-shadow:none}
+  @keyframes odPulse{0%{box-shadow:0 0 0 0 rgba(0,224,138,.55)}70%{box-shadow:0 0 0 7px rgba(0,224,138,0)}100%{box-shadow:0 0 0 0 rgba(0,224,138,0)}}
+  .room-go{color:var(--accent);font-size:18px;flex:none}
+
+  .scan-btn{
+    width:100%;margin-top:16px;padding:17px;border-radius:var(--r-md);
+    background:var(--grad);color:#061018;font-size:16px;font-weight:800;letter-spacing:1px;
+    box-shadow:0 12px 32px rgba(0,150,255,.32);position:relative;overflow:hidden;
+    transition:transform .15s var(--ease);
   }
+  .scan-btn:active{transform:scale(.97)}
+  .scan-btn::after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);transform:skewX(-20deg);
+    animation:scanShine 3.4s infinite}
+  @keyframes scanShine{0%,60%{left:-60%}100%{left:130%}}
 
-  /* ============ 入口（未进教室） ============ */
-  #gate { padding: calc(26px + env(safe-area-inset-top)) 18px 40px; }
-  .brand { text-align: center; margin: 18px 0 26px; }
-  .brand-logo { width: 76px; height: 76px; margin: 0 auto 14px; border-radius: 22px;
-    background: var(--accent-gradient); display: flex; align-items: center; justify-content: center;
-    font-size: 38px; box-shadow: 0 12px 36px rgba(0,212,255,.35); }
-  .brand h1 { margin: 0; font-size: 23px; letter-spacing: 3px;
-    background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .brand p { margin: 8px 0 0; font-size: 12px; color: var(--text-dim); }
-  .gate-status { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 14px; }
-  .room-card {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 14px 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; cursor: pointer;
-    transition: transform .15s, border-color .15s;
+  .gate-status{text-align:center;margin-top:14px;font-size:13px;color:var(--dim);display:flex;align-items:center;justify-content:center;gap:8px}
+  .spin{width:14px;height:14px;border:2px solid var(--line2);border-top-color:var(--accent);border-radius:50%;animation:rot .8s linear infinite;display:inline-block}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .gate-diag{margin-top:12px;text-align:center;font-size:10.5px;color:var(--faint);word-break:break-all;line-height:1.7}
+  .gate-note{margin-top:16px;font-size:11px;line-height:1.85;color:var(--dim);
+    border:1px dashed var(--line2);border-radius:var(--r-md);padding:12px 14px;background:rgba(255,255,255,.02)}
+
+  .empty-mini{text-align:center;padding:22px 12px;color:var(--faint);font-size:12.5px;line-height:1.9}
+  .empty-mini .ico{font-size:30px;display:block;margin-bottom:8px;opacity:.8}
+
+  /* ================= 主框架 ================= */
+  #main{display:none;min-height:100dvh;padding-bottom:calc(86px + env(safe-area-inset-bottom))}
+  .appbar{
+    position:sticky;top:0;z-index:40;padding:calc(14px + env(safe-area-inset-top)) 18px 12px;
+    background:linear-gradient(180deg,rgba(7,7,15,.92),rgba(7,7,15,.55) 70%,transparent);
+    backdrop-filter:blur(14px);display:flex;align-items:center;gap:12px;
   }
-  .room-card:active { transform: scale(.98); border-color: rgba(0,212,255,.5); }
-  .room-card.offline { opacity: .5; }
-  .room-avatar { width: 46px; height: 46px; border-radius: 13px; background: var(--accent-gradient);
-    display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
-    box-shadow: 0 4px 14px rgba(0,212,255,.28); }
-  .room-info { flex: 1; min-width: 0; }
-  .room-name { font-size: 15px; font-weight: 600; }
-  .room-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
-  .online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 7px var(--success); }
-  .online-dot.off { background: var(--text-dim); box-shadow: none; }
-  .scan-btn {
-    width: 100%; padding: 17px; border-radius: var(--radius); cursor: pointer;
-    border: 2px dashed rgba(0,212,255,.45); background: rgba(0,212,255,.06);
-    color: var(--accent); font-size: 15px; font-weight: 600;
-    display: flex; align-items: center; justify-content: center; gap: 9px;
+  .ab-title{font-size:18px;font-weight:800;letter-spacing:.5px}
+  .ab-sub{font-size:11px;color:var(--dim);margin-top:2px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ab-sp{flex:1}
+  .chip-conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
+    border:1px solid var(--line2);border-radius:999px;padding:5px 11px;background:rgba(255,255,255,.03)}
+
+  .page{display:none;padding:6px 16px 20px;animation:fadeUp .32s var(--ease)}
+  .page.active{display:block}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* 浮动底栏 */
+  .tabbar{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:50;
+    width:calc(100% - 32px);max-width:420px;
+    display:flex;justify-content:space-around;align-items:center;
+    background:rgba(18,18,36,.82);border:1px solid var(--line2);border-radius:999px;
+    padding:7px;backdrop-filter:blur(18px);box-shadow:var(--shadow);
   }
-  .scan-btn:active { background: rgba(0,212,255,.15); }
-  .gate-note { margin-top: 22px; font-size: 11px; line-height: 1.8; color: var(--text-dim);
-    border: 1px dashed var(--line); border-radius: 12px; padding: 12px 14px; }
-  .gate-diagnostic { margin-top: 10px; font-size: 11px; color: var(--text-dim);
-    text-align: center; opacity: 0.7; word-break: break-all; }
-  .gate-diagnostic .diag-sep { margin: 0 6px; opacity: 0.5; }
-  #discoveredWrap { margin-top: 14px; }
-
-  /* ============ 顶部通知横幅（不打断、不全屏） ============ */
-  .banner {
-    position: fixed; top: calc(58px + env(safe-area-inset-top)); left: 50%;
-    transform: translate(-50%, -140%);
-    width: calc(100% - 24px); max-width: 516px; z-index: 60; cursor: pointer;
-    background: linear-gradient(120deg, rgba(0,90,120,.92), rgba(60,30,120,.92));
-    border: 1px solid rgba(0,212,255,.5); border-radius: 14px; padding: 11px 14px;
-    display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 34px rgba(0,0,0,.5);
-    backdrop-filter: blur(16px); transition: transform .35s cubic-bezier(.2,.9,.3,1.2);
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    font-size:10.5px;color:var(--faint);padding:6px 0;border-radius:999px;position:relative;
+    transition:color .25s;}
+  .tab .ti{font-size:19px;line-height:1;transition:transform .25s var(--ease)}
+  .tab.active{color:#061018;font-weight:700;background:var(--grad);box-shadow:0 6px 18px rgba(0,150,255,.35)}
+  .tab.active .ti{transform:translateY(-1px) scale(1.08)}
+  .tab .badge{
+    position:absolute;top:0;right:18%;min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+    background:var(--danger);color:#fff;font-size:10px;line-height:16px;font-weight:700;text-align:center;
+    animation:badgePop .3s var(--ease);
   }
-  .banner.show { transform: translate(-50%, 0); }
-  .banner .b-ico { font-size: 20px; }
-  .banner .b-txt { flex: 1; min-width: 0; }
-  .banner .b-title { font-size: 12px; color: var(--accent); font-weight: 700; }
-  .banner .b-body { font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @keyframes badgePop{0%{transform:scale(0)}100%{transform:scale(1)}}
 
-  /* ============ 消息页 ============ */
-  .chat { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
-  .bubble { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.6;
-    word-break: break-word; white-space: pre-wrap; position: relative; }
-  .bubble .b-sender { font-size: 11px; color: var(--accent); margin-bottom: 3px; font-weight: 600; }
-  .bubble .b-time { font-size: 10px; color: var(--text-dim); margin-top: 4px; text-align: right; }
-  .bubble.in { align-self: flex-start; background: var(--card); border: 1px solid var(--line);
-    border-top-left-radius: 4px; }
-  .bubble.in .b-time { text-align: left; }
-  .bubble.me { align-self: flex-end; background: var(--accent-gradient); color: #fff;
-    border-top-right-radius: 4px; box-shadow: 0 6px 18px rgba(124,58,237,.35); }
-  .bubble.me .b-time { color: rgba(255,255,255,.75); }
-  .bubble.sys { align-self: center; background: none; color: var(--text-dim); font-size: 11px; padding: 0; }
-  .composer { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 10px; }
-  .quick-tags { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
-  .quick-tags::-webkit-scrollbar { display: none; }
-  .quick-tag { flex-shrink: 0; padding: 5px 13px; border-radius: 999px; font-size: 12px;
-    background: rgba(255,255,255,.07); border: 1px solid var(--line); cursor: pointer; }
-  .quick-tag:active { border-color: var(--accent); color: var(--accent); }
-  .composer-row { display: flex; gap: 8px; align-items: flex-end; }
-  .composer-row textarea { flex: 1; min-height: 42px; max-height: 110px; }
+  /* ================= 卡片/通用 ================= */
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
+    padding:15px;margin-bottom:13px;backdrop-filter:blur(12px);
+    animation:cardIn .4s var(--ease) backwards;
+  }
+  .card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}.card:nth-child(4){animation-delay:.15s}
+  @keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .card-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:7px;margin-bottom:12px}
+  .sp{flex:1}
+  .cnt{font-size:11px;color:var(--accent);background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);
+    border-radius:999px;padding:1px 8px;font-weight:700}
 
-  /* ============ 班级管理 ============ */
-  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-  .chip-row::-webkit-scrollbar { display: none; }
-  .chip { flex-shrink: 0; padding: 7px 15px; border-radius: 999px; font-size: 13px; cursor: pointer;
-    background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text); display: flex; align-items: center; gap: 6px; }
-  .chip.sel { background: var(--accent-gradient); border-color: transparent; color: #fff; font-weight: 600;
-    box-shadow: 0 4px 14px rgba(0,212,255,.3); }
-  .chip .x { opacity: .55; font-size: 12px; padding: 0 2px; }
-  .chip-add { flex-shrink: 0; border-style: dashed; color: var(--accent); border-color: rgba(0,212,255,.4); }
-  .list-row { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid rgba(255,255,255,.05); min-width: 0; }
-  .list-row:last-child { border-bottom: none; }
-  .row-avatar { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: #fff; }
-  .row-main { flex: 1; min-width: 0; }
-  .row-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-  .row-acts { display: flex; gap: 6px; flex-shrink: 0; }
-  .icon-btn { width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--line);
-    background: rgba(255,255,255,.05); color: var(--text); font-size: 14px; cursor: pointer; }
-  .icon-btn:active { transform: scale(.9); }
-  .icon-btn.danger { color: #ff8fa3; border-color: rgba(255,77,109,.35); background: rgba(255,77,109,.1); }
-  .loading { text-align: center; color: var(--text-dim); font-size: 12px; padding: 22px; }
+  .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:5px;-webkit-overflow-scrolling:touch}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;
+    padding:8px 14px;border-radius:999px;background:rgba(255,255,255,.04);
+    border:1px solid var(--line2);color:var(--dim);transition:all .2s;
+  }
+  .chip.sel{background:var(--grad);color:#061018;border-color:transparent;box-shadow:0 5px 16px rgba(0,150,255,.3)}
+  .chip.add{border-style:dashed;color:var(--accent)}
+  .chip .x{font-size:11px;opacity:.65;padding:0 1px}
+  .chip.sel .x{opacity:.8}
 
-  /* ============ 教材目录 ============ */
-  .cat-unit { margin-bottom: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-  .cat-unit-head { padding: 11px 14px; font-size: 13px; font-weight: 600; background: rgba(255,255,255,.04);
-    display: flex; align-items: center; gap: 8px; }
-  .cat-q { padding: 11px 14px; font-size: 13px; border-top: 1px solid rgba(255,255,255,.05); cursor: pointer;
-    display: flex; align-items: center; gap: 8px; }
-  .cat-q:active { background: rgba(0,212,255,.08); }
-  .cat-q .qt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .cat-q .arrow { color: var(--text-dim); font-size: 12px; }
-  .article-content { font-size: 14px; line-height: 1.9; white-space: pre-wrap; word-break: break-word;
-    max-height: 55dvh; overflow-y: auto; background: rgba(0,0,0,.28); border-radius: 12px; padding: 14px; }
+  .lrow{display:flex;align-items:center;gap:12px;padding:10px 6px;border-radius:var(--r-sm);}
+  .lrow:active{background:rgba(255,255,255,.04)}
+  .lava{width:38px;height:38px;border-radius:12px;flex:none;display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+  .lmain{flex:1;min-width:0}
+  .lname{font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .lsub{font-size:11px;color:var(--faint);margin-top:2px}
+  .lacts{display:flex;gap:4px;flex:none}
+  .ib{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;
+    background:rgba(255,255,255,.05);border:1px solid var(--line);transition:all .15s}
+  .ib:active{transform:scale(.9)}
+  .ib.danger{background:rgba(255,77,109,.12);border-color:rgba(255,77,109,.3)}
+  .wbadge{font-size:10px;color:var(--warn);background:rgba(255,176,32,.1);border-radius:6px;padding:1px 6px;margin-left:auto}
 
-  /* ============ 我的 ============ */
-  .me-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-  .me-avatar { width: 58px; height: 58px; border-radius: 17px; background: var(--accent-gradient);
-    display: flex; align-items: center; justify-content: center; font-size: 27px;
-    box-shadow: 0 8px 24px rgba(124,58,237,.4); }
-  .me-name { font-size: 17px; font-weight: 700; }
-  .me-sub { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
-  .kv-row { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 1px solid rgba(255,255,255,.05); font-size: 13px; }
-  .kv-row:last-child { border-bottom: none; }
-  .kv-row .k { color: var(--text-dim); flex-shrink: 0; width: 76px; font-size: 12px; }
-  .kv-row .v { flex: 1; min-width: 0; word-break: break-all; text-align: right; }
-  .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .switch .sl { position: absolute; inset: 0; background: rgba(255,255,255,.15); border-radius: 26px; transition: .25s; cursor: pointer; }
-  .switch .sl::before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px;
-    background: #fff; border-radius: 50%; transition: .25s; }
-  .switch input:checked + .sl { background: var(--accent); }
-  .switch input:checked + .sl::before { transform: translateX(20px); }
-  details.settings-adv summary { font-size: 13px; color: var(--text-dim); cursor: pointer; padding: 6px 0; }
-  .update-notes { font-size: 12px; line-height: 1.7; color: var(--text-dim); white-space: pre-wrap;
-    max-height: 180px; overflow-y: auto; background: rgba(0,0,0,.25); border-radius: 10px; padding: 10px 12px; margin: 10px 0; }
-  .progress-line { height: 6px; border-radius: 999px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 10px; }
-  .progress-line > i { display: block; height: 100%; width: 0; background: var(--accent-gradient); transition: width .3s; }
+  .btn{padding:12px;border-radius:var(--r-md);font-size:14px;font-weight:700;transition:transform .15s,filter .2s}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--grad);color:#061018;box-shadow:0 8px 22px rgba(0,150,255,.28)}
+  .btn-ghost{background:rgba(255,255,255,.05);border:1px solid var(--line2);color:var(--text)}
+  .btn-danger{background:rgba(255,77,109,.14);border:1px solid rgba(255,77,109,.4);color:var(--danger)}
+  .btn-block{width:100%;margin-top:9px}
+  .btn-sm{padding:6px 13px;font-size:12px;border-radius:999px}
+  .loading{padding:20px;text-align:center;color:var(--dim);font-size:12.5px}
+  .retry-btn{margin-top:10px;font-size:12px;color:var(--accent);text-decoration:underline}
 
-  /* ============ 弹窗 / 底部表单 ============ */
-  .mask { position: fixed; inset: 0; background: rgba(0,0,0,.62); backdrop-filter: blur(5px);
-    z-index: 100; display: none; }
-  .mask.show { display: block; }
-  .modal { position: fixed; z-index: 101; left: 50%; top: 50%; transform: translate(-50%,-46%) scale(.92);
-    width: 86%; max-width: 360px; background: var(--bg2); border: 1px solid var(--line); border-radius: 18px;
-    padding: 24px; opacity: 0; pointer-events: none; transition: all .22s; }
-  .modal.show { opacity: 1; pointer-events: auto; transform: translate(-50%,-50%) scale(1); }
-  .modal h3 { margin: 0 0 6px; font-size: 17px; }
-  .modal .m-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
-  .pair-input { width: 100%; padding: 14px; font-size: 26px; letter-spacing: 8px; text-align: center;
-    background: rgba(0,0,0,.32); border: 1px solid var(--line); border-radius: 12px;
-    color: var(--accent); font-weight: 700; outline: none; text-transform: uppercase; }
-  .pair-input:focus { border-color: var(--accent); }
-  .modal-btns { display: flex; gap: 10px; margin-top: 18px; }
-  .modal-btns .btn { flex: 1; }
-  .sheet { position: fixed; z-index: 101; left: 50%; bottom: 0; transform: translate(-50%,105%);
-    width: 100%; max-width: 540px; background: var(--bg2); border: 1px solid var(--line);
-    border-radius: 22px 22px 0 0; padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
-    transition: transform .28s cubic-bezier(.2,.9,.3,1.15); max-height: 88dvh; overflow-y: auto; }
-  .sheet.show { transform: translate(-50%,0); }
-  .sheet h3 { margin: 0 0 16px; font-size: 16px; }
-  .seg2 { display: flex; gap: 8px; }
-  .seg2 .chip { flex: 1; justify-content: center; }
+  /* ================= 消息对话 ================= */
+  .chat{padding:8px 2px 10px;display:flex;flex-direction:column;gap:13px;min-height:50vh}
+  .bubble{max-width:78%;padding:10px 14px;border-radius:18px;font-size:14px;line-height:1.65;
+    word-break:break-word;position:relative;animation:bubbleIn .3s var(--ease)}
+  @keyframes bubbleIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+  .b-in{align-self:flex-start;background:var(--card-solid);border:1px solid var(--line);
+    border-top-left-radius:5px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+  .b-me{align-self:flex-end;background:var(--grad);color:#061018;border-top-right-radius:5px;font-weight:600;
+    box-shadow:0 6px 18px rgba(80,110,255,.35)}
+  .b-sys{align-self:center;background:rgba(255,255,255,.05);border:1px dashed var(--line2);
+    color:var(--dim);font-size:11.5px;border-radius:999px;padding:5px 14px;max-width:90%;text-align:center}
+  .b-sender{font-size:11.5px;font-weight:700;color:var(--accent);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+  .b-sender .sa{width:18px;height:18px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;
+    font-size:10px;color:#fff;font-weight:700}
+  .b-time{font-size:10px;opacity:.55;margin-top:4px;text-align:right}
+  .b-me .b-time{opacity:.7}
 
-  /* ============ Toast ============ */
-  .toast { position: fixed; top: calc(20px + env(safe-area-inset-top)); left: 50%;
-    transform: translateX(-50%) translateY(-24px); z-index: 200;
-    background: rgba(28,28,50,.96); border: 1px solid rgba(0,212,255,.35); color: var(--text);
-    padding: 11px 22px; border-radius: 999px; font-size: 13px; max-width: 86%; text-align: center;
-    opacity: 0; transition: all .3s; pointer-events: none; backdrop-filter: blur(14px); }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.error { border-color: var(--danger); }
+  .composer{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom));
+    width:calc(100% - 24px);max-width:516px;z-index:30}
+  .quick-tags{display:flex;gap:7px;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+  .quick-tags::-webkit-scrollbar{display:none}
+  .quick-tag{flex:none;font-size:12px;padding:6px 13px;border-radius:999px;
+    background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.25);color:var(--accent);font-weight:600}
+  .quick-tag:active{transform:scale(.94)}
+  .composer-row{display:flex;gap:9px;background:rgba(18,18,36,.88);border:1px solid var(--line2);
+    border-radius:999px;padding:6px 6px 6px 16px;backdrop-filter:blur(18px);box-shadow:var(--shadow)}
+  .ipt{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--line2);border-radius:var(--r-sm);
+    color:var(--text);font-size:14px;padding:11px 13px;outline:none}
+  .ipt:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,212,255,.12)}
+  .composer-row .ipt{border:none;background:transparent;flex:1;padding:8px 4px;font-size:14px;max-height:90px}
+  .composer-row .btn{padding:9px 18px;margin:0;border-radius:999px}
+
+  /* ================= 教材 ================= */
+  .cat-unit-head{font-size:12.5px;font-weight:700;color:var(--accent);margin:14px 2px 7px;display:flex;align-items:center;gap:7px}
+  .cat-unit-head::before{content:"";width:4px;height:13px;border-radius:2px;background:var(--grad)}
+  .cat-q{display:flex;align-items:center;gap:11px;padding:13px 12px;border-bottom:1px solid var(--line);transition:background .15s}
+  .cat-q:last-child{border-bottom:none}
+  .cat-q:active{background:rgba(0,212,255,.05)}
+  .cat-q .qi{font-size:17px}
+  .cat-q .qt{flex:1;font-size:13.5px;font-weight:600}
+  .cat-q .arrow{font-size:11.5px;color:var(--faint)}
+  .article-content{font-size:15px;line-height:2.05;white-space:pre-wrap;color:var(--text);font-family:"PingFang SC","微软雅黑",serif}
+
+  /* ================= 我的 ================= */
+  .me-hero{
+    border-radius:var(--r-lg);padding:20px;margin-bottom:13px;position:relative;overflow:hidden;
+    background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,58,237,.24));
+    border:1px solid var(--line2);display:flex;align-items:center;gap:15px;
+  }
+  .me-hero::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle,rgba(236,72,153,.25),transparent 70%)}
+  .me-ava{width:58px;height:58px;border-radius:19px;background:var(--grad-pink);display:flex;align-items:center;
+    justify-content:center;font-size:28px;flex:none;box-shadow:0 8px 22px rgba(124,58,237,.4)}
+  .kv-row{display:flex;justify-content:space-between;font-size:12.5px;padding:7px 0;color:var(--dim)}
+  .kv-row .v{color:var(--text);font-weight:600}
+  .field{margin-bottom:11px}
+  .field label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
+  .settings-adv summary{font-size:13px;font-weight:600;outline:none;cursor:pointer}
+  .switch{position:relative;display:inline-block;width:44px;height:25px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .sl{position:absolute;inset:0;background:rgba(255,255,255,.12);border-radius:999px;transition:.25s}
+  .sl::before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;border-radius:50%;background:#fff;transition:.25s var(--ease)}
+  .switch input:checked + .sl{background:var(--grad)}
+  .switch input:checked + .sl::before{transform:translateX(19px)}
+  .set-row{display:flex;align-items:center;gap:12px;padding:6px 2px}
+
+  /* ================= 弹层 ================= */
+  .mask{position:fixed;inset:0;z-index:90;background:rgba(3,3,10,.62);backdrop-filter:blur(5px);
+    opacity:0;pointer-events:none;transition:opacity .25s}
+  .mask.show{opacity:1;pointer-events:auto}
+  .modal{position:fixed;z-index:91;left:50%;top:50%;transform:translate(-50%,-46%) scale(.94);
+    width:calc(100% - 56px);max-width:400px;background:var(--bg2);border:1px solid var(--line2);
+    border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow);opacity:0;pointer-events:none;
+    transition:all .28s var(--ease)}
+  .modal.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .modal h3{font-size:17px;margin-bottom:6px}
+  .m-sub{font-size:12px;color:var(--dim);line-height:1.7;margin-bottom:16px}
+  .pair-input{width:100%;text-align:center;font-size:26px;font-weight:800;letter-spacing:10px;text-transform:uppercase;
+    background:rgba(255,255,255,.05);border:1.5px solid var(--line2);border-radius:var(--r-md);
+    color:var(--accent);padding:14px;outline:none;margin-bottom:16px}
+  .pair-input:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(0,212,255,.14)}
+  .modal-btns{display:flex;gap:10px}
+  .modal-btns .btn{flex:1}
+
+  /* 底部表单 */
+  #sheetMask{z-index:92}
+  #sheet{position:fixed;z-index:93;left:0;right:0;bottom:0;max-width:540px;margin:0 auto;
+    background:var(--bg2);border-radius:24px 24px 0 0;border:1px solid var(--line2);border-bottom:none;
+    padding:10px 20px calc(22px + env(safe-area-inset-bottom));transform:translateY(105%);
+    transition:transform .32s var(--ease);box-shadow:0 -12px 44px rgba(0,0,0,.5)}
+  #sheet.show{transform:none}
+  #sheet .handle{width:40px;height:4px;border-radius:2px;background:var(--line2);margin:4px auto 14px}
+  #sheet h3{font-size:16px;margin-bottom:14px;text-align:center}
+
+  /* 横幅 */
+  .banner{position:fixed;z-index:80;top:calc(64px + env(safe-area-inset-top));left:12px;right:12px;max-width:516px;margin:0 auto;
+    display:flex;gap:11px;align-items:center;padding:12px 15px;border-radius:var(--r-md);
+    background:linear-gradient(135deg,rgba(0,212,255,.16),rgba(124,58,237,.2));
+    border:1px solid rgba(0,212,255,.4);backdrop-filter:blur(16px);box-shadow:var(--shadow);
+    transform:translateY(-130%);transition:transform .35s var(--ease)}
+  .banner.show{transform:none}
+  .banner .b-ico{font-size:22px;animation:bellShake .6s var(--ease)}
+  @keyframes bellShake{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+  .b-title{font-size:12.5px;font-weight:700;color:var(--accent)}
+  .b-body{font-size:13.5px;margin-top:2px;line-height:1.5;max-height:42px;overflow:hidden}
+
+  /* toast */
+  .toast{position:fixed;z-index:200;bottom:calc(110px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(16px);
+    background:rgba(22,22,42,.95);border:1px solid var(--line2);color:var(--text);
+    padding:11px 20px;border-radius:999px;font-size:13px;max-width:86%;text-align:center;
+    opacity:0;transition:all .28s var(--ease);pointer-events:none;backdrop-filter:blur(12px)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.error{border-color:rgba(255,77,109,.5);color:#ffb3c0}
 </style>
 </head>
 <body>
-
 <div id="app">
 
-  <!-- ============ 入口：连接教室 ============ -->
+  <!-- ============ 入口 ============ -->
   <div id="gate">
-    <div class="brand">
-      <div class="brand-logo">🎓</div>
+    <div class="gate-brand">
+      <div class="gate-logo">🎓</div>
       <h1>班级管理大师</h1>
-      <p id="gateSub">手机端 · 班级管理 / 教材 / 消息</p>
+      <p>班级管理 · 教材目录 · 教室消息</p>
     </div>
 
     <div id="pinnedWrap">
-      <div style="font-size:12px;color:var(--text-dim);margin:0 2px 8px">📎 我的教室（点击直接进入）</div>
+      <div class="gate-sec-label">📎 我的教室</div>
       <div id="pinnedRooms"></div>
     </div>
 
-    <!-- 发现的在线教室（含未配对的，临时模式也能看到并加入） -->
-    <div id="discoveredWrap">
-      <div style="font-size:12px;color:var(--text-dim);margin:0 2px 8px">🌐 附近在线教室（点击进入）</div>
+    <div id="discoveredWrap" style="display:none">
+      <div class="gate-sec-label">🌐 附近在线教室</div>
       <div id="discoveredRooms"></div>
     </div>
 
     <button class="scan-btn" onclick="startScan()">📷 扫描教室二维码连接</button>
-    <div class="gate-status" id="relayStatus">🔄 初始化中...</div>
-
-    <div class="gate-diagnostic" id="gateDiag"></div>
+    <div class="gate-status" id="relayStatus"><span class="spin"></span><span>初始化中…</span></div>
+    <div class="gate-diag" id="gateDiag"></div>
     <div class="gate-note" id="gateNote"></div>
   </div>
 
   <!-- ============ 主界面 ============ -->
-  <div id="main" style="display:none">
+  <div id="main">
     <div class="appbar">
       <div>
-        <div class="appbar-title" id="barTitle">消息大屏</div>
-        <div class="appbar-sub" id="barSub"></div>
+        <div class="ab-title" id="barTitle">消息</div>
+        <div class="ab-sub" id="barSub"></div>
       </div>
-      <div class="conn-chip"><span class="dot" id="barDot"></span><span id="barState">在线</span></div>
+      <div class="ab-sp"></div>
+      <div class="chip-conn"><span class="od" id="barDot"></span><span id="barState">在线</span></div>
     </div>
 
     <!-- 消息 -->
     <div class="page active" id="page-msg">
       <div class="chat" id="chatList"></div>
-      <div class="composer">
-        <div class="quick-tags" id="quickTags"></div>
-        <div class="composer-row">
-          <textarea class="ipt" id="msgInput" rows="1" placeholder="发消息到教室大屏…"></textarea>
-          <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">发送</button>
-        </div>
+    </div>
+    <div class="composer">
+      <div class="quick-tags" id="quickTags"></div>
+      <div class="composer-row">
+        <textarea class="ipt" id="msgInput" rows="1" placeholder="发消息到教室大屏…"></textarea>
+        <button class="btn btn-primary" onclick="sendMessage()">发送</button>
       </div>
     </div>
 
     <!-- 班级管理 -->
     <div class="page" id="page-class">
       <div class="card">
-        <div class="card-title">🎓 年级
-          <span class="sp"></span>
-        </div>
-        <div class="chip-row" id="gradeChips"></div>
+        <div class="card-title">🎓 年级选择</div>
+        <div class="chips" id="gradeChips"></div>
       </div>
-
       <div class="card">
-        <div class="card-title">🏫 班级 <span class="count" id="classCount"></span>
-          <button class="btn btn-sm btn-ghost sp" onclick="editClass()">＋ 新增</button>
-        </div>
+        <div class="card-title">🏫 班级 <span class="cnt" id="classCount"></span>
+          <span class="sp"></span><button class="btn btn-sm btn-ghost" onclick="editClass()">＋ 新增</button></div>
         <div id="classList"></div>
       </div>
-
       <div class="card">
-        <div class="card-title">👥 学生 <span class="count" id="studentCount"></span>
-          <button class="btn btn-sm btn-ghost sp" onclick="editStudent()">＋ 新增</button>
-        </div>
+        <div class="card-title">👥 学生 <span class="cnt" id="studentCount"></span>
+          <span class="sp"></span><button class="btn btn-sm btn-ghost" onclick="editStudent()">＋ 新增</button></div>
         <div id="studentList"></div>
       </div>
-
       <div class="card">
         <div class="card-title">📚 学科（绑定年级）
-          <button class="btn btn-sm btn-ghost sp" onclick="editSubject()">＋ 新增</button>
-        </div>
+          <span class="sp"></span><button class="btn btn-sm btn-ghost" onclick="editSubject()">＋ 新增</button></div>
         <div id="subjectList"></div>
       </div>
     </div>
@@ -365,30 +383,34 @@
     <div class="page" id="page-catalog">
       <div class="card">
         <div class="card-title">🎓 年级</div>
-        <div class="chip-row" id="catGradeChips"></div>
+        <div class="chips" id="catGradeChips"></div>
       </div>
       <div class="card">
         <div class="card-title">📖 学科</div>
-        <div class="chip-row" id="catSubjectChips"></div>
+        <div class="chips" id="catSubjectChips"></div>
       </div>
       <div class="card">
-        <div class="card-title">📑 课文目录</div>
+        <div class="card-title">📚 册别</div>
+        <div class="chips" id="catVolChips"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📑 课文目录 <span class="sp"></span><button class="btn btn-sm btn-ghost" onclick="ensureCatalogLoaded(true)">🔄 刷新</button></div>
         <div id="catUnits"></div>
       </div>
     </div>
 
     <!-- 我的 -->
     <div class="page" id="page-me">
-      <div class="card me-head">
-        <div class="me-avatar">👤</div>
+      <div class="me-hero">
+        <div class="me-ava">👤</div>
         <div style="flex:1;min-width:0">
-          <div class="me-name" id="meName">手机用户</div>
-          <div class="me-sub" id="meRoom">—</div>
+          <div style="font-size:18px;font-weight:800" id="meName">手机用户</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:4px" id="meRoom">—</div>
         </div>
       </div>
 
       <div class="card">
-        <div class="field">
+        <div class="field" style="margin-bottom:9px">
           <label>我的昵称（显示给电脑端）</label>
           <input class="ipt" id="senderInput" placeholder="如：学生A">
         </div>
@@ -396,17 +418,14 @@
       </div>
 
       <div class="card" id="keepAliveCard">
-        <div class="list-row" style="padding:4px 2px">
+        <div class="set-row">
           <div style="flex:1">
-            <div style="font-size:13px">🔔 后台保活</div>
-            <div style="font-size:11px;color:var(--text-dim);margin-top:3px;line-height:1.6">
-              通知栏常驻，锁屏/后台也能收到电脑的连接请求与消息
+            <div style="font-size:13.5px;font-weight:600">🔔 后台保活</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:3px;line-height:1.6">
+              通知栏常驻一条低调提示，锁屏/后台也能收到电脑的消息
             </div>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="keepAliveInput" onchange="toggleKeepAlive(this.checked)">
-            <span class="sl"></span>
-          </label>
+          <label class="switch"><input type="checkbox" id="keepAliveInput" onchange="toggleKeepAlive(this.checked)"><span class="sl"></span></label>
         </div>
       </div>
 
@@ -414,38 +433,38 @@
         <div class="card-title">⬆️ 检查更新</div>
         <div class="kv-row"><span class="k">当前版本</span><span class="v" id="curVersion">—</span></div>
         <div id="updateResult"></div>
-        <button class="btn btn-ghost btn-block btn-sm" style="margin-top:10px" onclick="checkAppUpdate()">检查更新</button>
+        <button class="btn btn-ghost btn-block btn-sm" onclick="checkAppUpdate()">检查更新</button>
       </div>
 
       <div class="card">
         <details class="settings-adv">
           <summary>⚙️ 高级设置</summary>
-          <div style="margin-top:10px">
+          <div style="margin-top:12px">
             <div class="field">
               <label>中继服务器地址</label>
               <input class="ipt" id="relayUrlInput" placeholder="wss://your-relay.example.com">
             </div>
             <button class="btn btn-ghost btn-block btn-sm" onclick="saveRelayUrl()">保存并重新连接</button>
-            <button class="btn btn-ghost btn-block btn-sm" style="margin-top:6px" onclick="resetRelayUrl()">↺ 恢复默认公网中继</button>
+            <button class="btn btn-ghost btn-block btn-sm" onclick="resetRelayUrl()">↺ 恢复默认公网中继</button>
           </div>
         </details>
       </div>
 
       <div class="card">
         <button class="btn btn-primary btn-block" onclick="leaveRoom()">🚪 离开当前教室</button>
-        <button class="btn btn-danger btn-block" id="unpairBtn" style="margin-top:8px" onclick="unpairCurrent()">解除与该教室的配对</button>
+        <button class="btn btn-danger btn-block" id="unpairBtn" onclick="unpairCurrent()">解除与该教室的配对</button>
       </div>
     </div>
-  </div>
 
-  <!-- 底部 Tab（JS 渲染：App 4 个，浏览器 2 个） -->
-  <div class="tabbar" id="tabbar"></div>
+    <!-- 浮动底栏（仅进教室后显示） -->
+    <div class="tabbar" id="tabbar"></div>
+  </div>
 </div>
 
-<!-- 新消息顶部横幅 -->
+<!-- 新消息横幅 -->
 <div class="banner" id="banner" onclick="openBanner()">
   <div class="b-ico">📨</div>
-  <div class="b-txt">
+  <div style="flex:1;min-width:0">
     <div class="b-title" id="bannerTitle">教室消息</div>
     <div class="b-body" id="bannerBody"></div>
   </div>
@@ -455,37 +474,36 @@
 <div class="mask" id="pairMask"></div>
 <div class="modal" id="pairModal">
   <h3 id="pairTitle">🔐 输入配对码</h3>
-  <div class="m-sub">请看教室电脑屏幕上显示的 6 位配对码</div>
+  <div class="m-sub">请看教室电脑屏幕上显示的 6 位配对码，输入一次即可，本次连接内不再重复要求</div>
   <input class="pair-input" id="pairCodeInput" maxlength="6" placeholder="------" inputmode="text">
   <div class="modal-btns">
     <button class="btn btn-ghost" onclick="closePairModal()">取消</button>
-    <button class="btn btn-primary" onclick="confirmPair()">确认连接</button>
+    <button class="btn btn-primary" onclick="confirmPair()">进入教室</button>
   </div>
 </div>
 
-<!-- 电脑连接请求弹窗（后台待命时） -->
+<!-- 连接请求弹窗（standby） -->
 <div class="mask" id="notifyMask"></div>
 <div class="modal" id="notifyModal">
-  <h3>🔔 电脑请求连接</h3>
-  <div class="m-sub" id="notifyModalHost"></div>
-  <div class="article-content" id="notifyModalBody" style="max-height:30dvh"></div>
+  <h3 id="notifyModalHost">🏫 教室电脑</h3>
+  <div class="m-sub" id="notifyModalBody"></div>
   <div class="modal-btns">
-    <button class="btn btn-ghost" onclick="declineNotify()">稍后</button>
-    <button class="btn btn-primary" onclick="acceptNotify()">🔗 进入教室</button>
+    <button class="btn btn-ghost" onclick="declineNotify()">忽略</button>
+    <button class="btn btn-primary" onclick="acceptNotify()">进入教室</button>
   </div>
 </div>
 
-<!-- 通用底部表单（由 JS 填充） -->
-<div class="mask" id="sheetMask" onclick="closeSheet()"></div>
-<div class="sheet" id="sheet"></div>
-
-<!-- 通用内容弹窗 -->
-<div class="mask" id="infoMask" onclick="closeInfo()"></div>
-<div class="modal" id="infoModal">
-  <h3 id="infoTitle"></h3>
-  <div id="infoBody"></div>
-  <div class="modal-btns"><button class="btn btn-primary" style="flex:1" onclick="closeInfo()">我知道了</button></div>
+<!-- 课文阅读弹窗 -->
+<div class="mask" id="infoMask" onclick="if(event.target===this)closeArticle()"></div>
+<div class="modal" style="max-height:78vh;overflow-y:auto" id="infoModal">
+  <h3 id="infoTitle">课文</h3>
+  <div id="infoBody" style="margin:10px 0 4px"></div>
+  <div class="modal-btns"><button class="btn btn-primary" style="flex:1" onclick="closeArticle()">关闭</button></div>
 </div>
+
+<!-- 底部表单弹窗 -->
+<div class="mask" id="sheetMask" onclick="closeSheet()"></div>
+<div id="sheet"></div>
 
 <div class="toast" id="toast"></div>
 
@@ -497,7 +515,7 @@ const isNative = !!(window.Capacitor &&
   (window.Capacitor.platform === 'android' || window.Capacitor.platform === 'ios' ||
    (window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())))
 
-// 网页扫码本就是临时模式：浏览器绝不记忆任何教室（顺带清理历史版本可能写入的数据）
+// 网页扫码 = 临时模式：浏览器绝不记忆任何设备
 if (!isNative) { try { localStorage.removeItem('cm_pinned') } catch {} }
 
 function getMobileId() {
@@ -523,25 +541,17 @@ const state = {
   pinnedHosts: isNative ? JSON.parse(localStorage.getItem('cm_pinned') || '[]') : [],
   discovered: [],
   currentRoom: null,
+  // 当前会话（仅内存，关闭网页即失效；断线重连自动回教室，无需重输配对码）
+  resume: null,
   tab: 'msg',
   unread: 0,
   msgs: [],
-  // 班级数据
   grades: [], classes: [], students: [], subjects: [],
-  selGrade: null, selClass: null,
-  classLoaded: false,
-  // 教材
-  catalog: null,
-  catGrade: null, catSubject: null,
-  catalogLoaded: false,
+  selGrade: null, selClass: null, classLoaded: false,
+  catalog: null, catGrade: null, catSubject: null, catVol: null, catalogLoaded: false,
   appInfo: null,
-  // 配对流程
-  _pendingDeviceId: null,
-  _needPairForDeviceId: null,
-  _lastJoinId: null,
-  _tempPairCode: '',
-  _failCount: 0,
-  _lastNotify: null
+  _pendingDeviceId: null, _needPairForDeviceId: null, _lastJoinId: null,
+  _tempPairCode: '', _failCount: 0, _lastNotify: null
 }
 
 // ============================================================
@@ -561,17 +571,21 @@ function connect() {
     if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) return
 
     const wsUrl = state.relayUrl.replace(/\/+$/, '').replace(/\/relay$/, '') + '/relay'
-    setRelayStatus('🔄 正在连接…', '#ffb020')
+    setRelayStatus('🔄 正在连接…', '#ffb020', true)
     state.ws = new WebSocket(wsUrl)
 
     state.ws.onopen = () => {
       state.connected = true
       state._failCount = 0
-      setRelayStatus('✅ 已连接', '#00e08a')
+      setRelayStatus('✅ 已连接，正在获取教室列表…', '#00e08a', false)
       updateBarChip()
       if (isNative) syncMainStandby()
-      // 先处理扫码带来的待加入设备，再发 list（list 回调里会用到 _needPairForDeviceId）
-      if (state._pendingDeviceId) {
+      // 1) 断线重连：自动回到原教室（内存中的配对码，用户无感）
+      if (state.resume) {
+        const r = state.resume
+        sendJoin(r.deviceId, r.pairCode || '', '', r.persist)
+      } else if (state._pendingDeviceId) {
+        // 2) 刚扫码
         const id = state._pendingDeviceId
         state._pendingDeviceId = null
         if (state.pinnedHosts.find(p => p.deviceId === id)) sendJoin(id, '', '')
@@ -590,27 +604,28 @@ function connect() {
       clearInterval(state._listTimer)
       updateBarChip()
       state._failCount++
-      setRelayStatus(state._failCount <= 2 ? '🔌 断开，重连中…' : '☁️ 云端启动中，最长约 1 分钟…', '#ffb020')
+      setRelayStatus(state._failCount <= 2 ? '🔌 断开，重连中…' : '☁️ 云端启动中，最长约 1 分钟…', '#ffb020', true)
       setTimeout(connect, 3000)
     }
-    state.ws.onerror = () => setRelayStatus('☁️ 连接中（首次较慢）…', '#ffb020')
+    state.ws.onerror = () => setRelayStatus('☁️ 连接中（首次较慢）…', '#ffb020', true)
   } catch (e) {
-    setRelayStatus('❌ ' + e.message, '#ff4d6d')
+    setRelayStatus('❌ ' + e.message, '#ff4d6d', false)
   }
 }
 
-function setRelayStatus(text, color) {
+function setRelayStatus(text, color, spinning) {
   const el = document.getElementById('relayStatus')
-  if (el) { el.textContent = text; el.style.color = color || 'var(--text-dim)' }
+  if (el) {
+    el.innerHTML = (spinning ? '<span class="spin"></span>' : '') + '<span>' + text + '</span>'
+    el.style.color = color || 'var(--dim)'
+  }
 }
 function updateBarChip() {
-  const dot = document.getElementById('barDot')
-  const txt = document.getElementById('barState')
+  const dot = document.getElementById('barDot'), txt = document.getElementById('barState')
   if (!dot) return
   dot.classList.toggle('off', !state.connected)
   txt.textContent = state.connected ? '在线' : '连接中'
 }
-
 function wsSend(obj) {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify(obj))
   else showToast('连接中，请稍候再试', true)
@@ -618,7 +633,6 @@ function wsSend(obj) {
 
 function sendJoin(deviceId, pairCode, content, persist) {
   state._lastJoinId = deviceId
-  // 浏览器永远临时；App 默认持久配对
   const doPersist = persist === undefined ? isNative : persist
   wsSend({
     type: 'join', hostDeviceId: deviceId, mobileId: state.mobileId,
@@ -626,10 +640,10 @@ function sendJoin(deviceId, pairCode, content, persist) {
   })
 }
 
-// ---------- RPC：手机 → 电脑 的数据调用 ----------
+// ---------- RPC（带一次自动重试） ----------
 const pendingRpc = new Map()
 let rpcSeq = 0
-function rpc(method, params, timeoutMs = 12000) {
+function rpcOnce(method, params, timeoutMs = 12000) {
   return new Promise((resolve, reject) => {
     if (!state.currentRoom) return reject(new Error('未连接教室'))
     const reqId = 'r' + (++rpcSeq) + '_' + Date.now().toString(36)
@@ -643,6 +657,14 @@ function rpc(method, params, timeoutMs = 12000) {
     })
     wsSend({ type: 'call', reqId, method, params: Array.isArray(params) ? params : [] })
   })
+}
+async function rpc(method, params, timeoutMs) {
+  try {
+    return await rpcOnce(method, params, timeoutMs)
+  } catch (e) {
+    await new Promise(r => setTimeout(r, 800))
+    return rpcOnce(method, params, timeoutMs)
+  }
 }
 
 // ---------- 中继消息分发 ----------
@@ -664,7 +686,6 @@ function onRelayMessage(msg) {
     case 'joinOk': {
       closePairModal()
       const room = msg.room
-      // 浏览器一律按临时模式对待（兼容旧中继不回 temporary 的情况）
       const temporary = msg.temporary || !isNative
       if (!temporary) {
         if (!state.pinnedHosts.find(p => p.deviceId === room.hostDeviceId)) {
@@ -673,19 +694,25 @@ function onRelayMessage(msg) {
         }
         applyNativeKeepAlive()
         startStandbyPool()
-      } else {
-        showToast('临时模式：关闭网页后需重新扫码')
+      }
+      // 记住本次会话：断线自动重连，不再要配对码（仅内存，不落盘）
+      state.resume = {
+        deviceId: room.hostDeviceId,
+        pairCode: state._tempPairCode || '',
+        persist: !temporary
       }
       enterRoom({ deviceId: room.hostDeviceId, name: room.name, temporary })
       break
     }
+
+    case 'chatOk':
+      break
 
     case 'notify':
       handleIncomingNotify(msg)
       break
 
     case 'message':
-      // 广播消息（无 mobileId）或发给本手机的定向消息
       if (!msg.mobileId || msg.mobileId === state.mobileId) {
         receivePcMessage(msg.sender || '教室电脑', msg.content || '')
       }
@@ -699,8 +726,7 @@ function onRelayMessage(msg) {
     }
 
     case 'dataPush':
-      // 电脑端数据被其他手机修改 → 刷新当前班级数据
-      if (msg.kind === 'dataChanged' && state.tab === 'class') refreshClassAfterChange()
+      if (msg.msg?.kind === 'dataChanged' && state.tab === 'class') refreshClassAfterChange()
       break
 
     case 'revoked':
@@ -732,17 +758,17 @@ function onRelayMessage(msg) {
 const TABS = () => isNative
   ? [['msg','💬','消息'], ['class','👥','班级'], ['catalog','📖','教材'], ['me','👤','我的']]
   : [['msg','💬','消息'], ['me','👤','我的']]
-const TAB_TITLE = { msg: '消息大屏', class: '班级管理', catalog: '教材目录', me: '我的' }
+const TAB_TITLE = { msg: '消息', class: '班级管理', catalog: '教材目录', me: '我的' }
 
 function renderTabbar() {
   document.getElementById('tabbar').innerHTML = TABS().map(([k, icon, name]) =>
-    `<div class="tab ${state.tab === k ? 'active' : ''}" data-tab="${k}" onclick="switchTab('${k}')">
+    `<div class="tab ${state.tab === k ? 'active' : ''}" onclick="switchTab('${k}')">
        <span class="ti">${icon}</span>${name}
        ${k === 'msg' && state.unread ? `<span class="badge">${state.unread > 99 ? '99+' : state.unread}</span>` : ''}
      </div>`).join('')
 }
-
 function switchTab(tab) {
+  if (!state.currentRoom) { showToast('请先进入教室', true); return }
   if (!TABS().find(t => t[0] === tab)) return
   state.tab = tab
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
@@ -759,15 +785,14 @@ function enterRoom(room) {
   state.currentRoom = room
   state.msgs = loadMsgs(room.deviceId)
   state.unread = 0
-  // 重置业务数据
   state.grades = []; state.classes = []; state.students = []; state.subjects = []
   state.selGrade = null; state.selClass = null; state.classLoaded = false
-  state.catalog = null; state.catGrade = null; state.catSubject = null; state.catalogLoaded = false
+  state.catalog = null; state.catGrade = null; state.catSubject = null; state.catVol = null; state.catalogLoaded = false
   state.appInfo = null
 
   document.getElementById('gate').style.display = 'none'
   document.getElementById('main').style.display = 'block'
-  document.getElementById('barSub').textContent = room.name + (room.temporary ? ' · 临时' : '')
+  document.getElementById('barSub').textContent = room.name + (room.temporary ? ' · 临时连接' : '')
   document.getElementById('meRoom').textContent = room.name + (room.temporary ? '（临时连接）' : '')
   document.getElementById('meName').textContent = state.sender
   document.getElementById('keepAliveCard').style.display = isNative ? 'block' : 'none'
@@ -788,8 +813,8 @@ function enterRoom(room) {
 function leaveRoom(silent) {
   const room = state.currentRoom
   state.currentRoom = null
+  state.resume = null   // 主动离开：清除会话，下次需重新扫码
   if (room && isNative) {
-    // 降为后台待命（临时浏览器无权限，服务器会拒绝，忽略即可）
     wsSend({ type: 'standby', hostDeviceId: room.deviceId, mobileId: state.mobileId, sender: state.sender })
     setTimeout(syncMainStandby, 300)
   }
@@ -801,64 +826,58 @@ function leaveRoom(silent) {
 }
 
 // ============================================================
-//  入口页（扫码 / 我的教室）
+//  入口页
 // ============================================================
 function renderPinned() {
   const wrap = document.getElementById('pinnedWrap')
   const el = document.getElementById('pinnedRooms')
   wrap.style.display = isNative ? 'block' : 'none'
   document.getElementById('gateNote').innerHTML = isNative
-    ? '🔒 已配对教室可直接进入。<br>未配对的教室在下方「附近在线教室」中，点击后输入配对码。'
-    : '🌐 你正在使用<b>网页临时模式</b>：选择下方教室并输入配对码即可进入，<b>不会记住本设备</b>，关闭网页后需重新扫码。<br>完整功能（班级管理 / 教材目录 / 后台消息）请安装 Android App。'
+    ? '🔒 已配对教室可直接进入；未配对的教室在「附近在线教室」中点一下，输入一次配对码即可。'
+    : '🌐 <b>网页临时模式</b>：点下方教室输入一次配对码即可进入，<b>不会记住本设备</b>，本次连接内不会重复要求配对码。<br>完整功能（班级管理 / 教材目录 / 后台消息）请安装 Android App。'
 
   if (!isNative) { el.innerHTML = '' }
   else if (!state.pinnedHosts.length) {
-    el.innerHTML = `<div class="empty"><span class="ico">📋</span>还没有配对的教室
-      <div class="tip">在下方「附近在线教室」中点击教室<br>输入一次配对码即可永久配对</div></div>`
+    el.innerHTML = `<div class="empty-mini"><span class="ico">📋</span>还没有配对的教室<br>在「附近在线教室」中点击教室，输入一次配对码即可永久配对</div>`
   } else {
     el.innerHTML = state.pinnedHosts.map(p => {
       const live = state.discovered.find(d => d.deviceId === p.deviceId)
       return `<div class="room-card ${live ? '' : 'offline'}" onclick="tryJoinRoom('${p.deviceId}')">
-        <div class="room-avatar">🏫</div>
+        <div class="room-ava">🏫</div>
         <div class="room-info">
           <div class="room-name">${esc(p.name)}</div>
-          <div class="room-meta"><span class="online-dot ${live ? '' : 'off'}"></span>${live ? '在线 · 点击进入' : '电脑端离线'}</div>
+          <div class="room-meta"><span class="od ${live ? '' : 'off'}"></span>${live ? '在线 · 点击进入' : '电脑端离线'}</div>
         </div>
+        <div class="room-go">›</div>
       </div>`
     }).join('')
   }
 
-  // 发现的在线教室（排除已在"我的教室"中显示的）
   const dWrap = document.getElementById('discoveredWrap')
   const dEl = document.getElementById('discoveredRooms')
-  const discovered = state.discovered.filter(d =>
-    !state.pinnedHosts.find(p => p.deviceId === d.deviceId)
-  )
+  const discovered = state.discovered.filter(d => !state.pinnedHosts.find(p => p.deviceId === d.deviceId))
   if (!discovered.length) {
     dWrap.style.display = 'none'
   } else {
     dWrap.style.display = 'block'
     dEl.innerHTML = discovered.map(r => `
       <div class="room-card" onclick="tryJoinDiscovered('${r.deviceId}')">
-        <div class="room-avatar">🏫</div>
+        <div class="room-ava">🏫</div>
         <div class="room-info">
           <div class="room-name">${esc(r.name)}</div>
-          <div class="room-meta"><span class="online-dot"></span>在线 · 需配对码</div>
+          <div class="room-meta"><span class="od"></span>在线 · 需配对码</div>
         </div>
+        <div class="room-go">›</div>
       </div>`).join('')
   }
 
-  // 诊断信息：中继地址 + 在线教室数
   const diag = document.getElementById('gateDiag')
   if (diag) {
     const relayShort = state.relayUrl.replace(/^wss?:\/\//, '').replace(/\/relay$/, '')
-    diag.innerHTML = `<span title="${esc(state.relayUrl)}">中继：${esc(relayShort)}</span>
-      <span class="diag-sep">·</span>
-      <span>在线教室 ${state.discovered.length}</span>`
+    diag.innerHTML = `<span title="${esc(state.relayUrl)}">中继：${esc(relayShort)}</span> · <span>在线教室 ${state.discovered.length}</span>`
   }
 }
 
-// 点击"附近在线教室"中未配对的教室 → 直接弹配对码输入框
 function tryJoinDiscovered(deviceId) {
   if (!state.connected) { showToast('连接中，请稍候再试', true); return }
   const room = state.discovered.find(d => d.deviceId === deviceId)
@@ -904,7 +923,6 @@ function confirmPair() {
   const deviceId = state._pendingDeviceId
   if (!deviceId) { closePairModal(); return }
   state._tempPairCode = code
-  // 直接发 join（带配对码），relay 的 join 处理会校验配对码并授权
   sendJoin(deviceId, code, '')
 }
 
@@ -918,32 +936,24 @@ async function startScan() {
   try {
     showToast('正在启动相机…')
     const result = await scanner.scanBarcode({ hint: 17 })
-    if (result && result.ScanResult) {
-      handleQrContent(result.ScanResult)
-    } else {
-      showToast('未识别到二维码', true)
-    }
+    if (result && result.ScanResult) handleQrContent(result.ScanResult)
+    else showToast('未识别到二维码', true)
   } catch (e) {
     const msg = (e && e.message) ? e.message : String(e || '')
-    if (msg.includes('cancel') || msg.includes('Cancel')) {
-      // 用户主动取消，不提示
-    } else if (msg.includes('permission') || msg.includes('Permission') || msg.includes('camera')) {
-      showToast('请在系统设置中授予相机权限后重试', true)
-    } else {
-      showToast('扫码失败：' + (msg || '未知错误'), true)
-    }
+    if (/cancel/i.test(msg)) { /* 用户取消 */ }
+    else if (/permission|camera/i.test(msg)) showToast('请在系统设置中授予相机权限后重试', true)
+    else showToast('扫码失败：' + (msg || '未知错误'), true)
   }
 }
 function handleQrContent(content) {
   try {
-    let r = null, d = null, n = null
+    let r = null, d = null
     if (content.startsWith('http') || content.includes('?')) {
-      const u = new URL(content)
-      const sp = u.searchParams
-      r = sp.get('r'); d = sp.get('d'); n = sp.get('n')
+      const sp = new URL(content).searchParams
+      r = sp.get('r'); d = sp.get('d')
     } else {
       const data = JSON.parse(content)
-      r = data.r; d = data.d; n = data.n
+      r = data.r; d = data.d
     }
     if (!d) return
     state._pendingDeviceId = d
@@ -960,7 +970,7 @@ function handleQrContent(content) {
 }
 
 // ============================================================
-//  消息页（站内消息列表 + 顶部横幅 + 通知栏）
+//  消息（对话流 + 前后台通知分流）
 // ============================================================
 function msgStorageKey(deviceId) { return 'cm_msgs_' + deviceId }
 function loadMsgs(deviceId) {
@@ -980,53 +990,60 @@ function appendMsg(m) {
   if (state.msgs.length > 100) state.msgs = state.msgs.slice(-100)
   persistMsgs()
 }
+// PC 消息到达：前台 → 应用内横幅/列表；后台 → 系统通知栏
 function receivePcMessage(sender, content) {
   appendMsg({ from: 'pc', sender, content, at: Date.now() })
-  if (state.currentRoom && state.tab !== 'msg') {
+  const inMsgTab = state.currentRoom && state.tab === 'msg'
+  if (document.hidden || !state.currentRoom) {
+    postLocalNotification(sender, content)
+  }
+  if (!inMsgTab) {
     state.unread++
-    showBanner(sender, content)
+    if (!document.hidden) showBanner(sender, content)
     renderTabbar()
   } else {
     renderMessages()
   }
-  if (document.hidden || !state.currentRoom) postLocalNotification(sender, content)
 }
 function renderMessages() {
   const el = document.getElementById('chatList')
   if (!state.msgs.length) {
-    el.innerHTML = `<div class="empty"><span class="ico">📭</span>还没有消息
-      <div class="tip">电脑在「消息大屏」发送的内容会显示在这里<br>你也可以在下方发消息到教室大屏</div></div>`
+    el.innerHTML = `<div class="empty-mini" style="margin:auto"><span class="ico">📭</span>还没有消息
+      <div style="margin-top:4px">电脑在「消息大屏」发送的内容会显示在这里<br>你也可以在下方发消息到教室大屏</div></div>`
     return
   }
   el.innerHTML = state.msgs.map(m => {
-    if (m.from === 'sys') return `<div class="bubble sys">${esc(m.content)}</div>`
+    if (m.from === 'sys') return `<div class="bubble b-sys">${esc(m.content)}</div>`
     if (m.from === 'me') {
-      return `<div class="bubble me">${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
+      return `<div class="bubble b-me">${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
     }
-    return `<div class="bubble in">${m.sender ? `<div class="b-sender">${esc(m.sender)}</div>` : ''}${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
+    const c = avatarColor(m.sender || '电')
+    return `<div class="bubble b-in">
+      <div class="b-sender"><span class="sa" style="background:${c}">${esc((m.sender || '电').slice(0, 1))}</span>${esc(m.sender || '教室电脑')}</div>
+      ${esc(m.content)}<div class="b-time">${fmtTime(m.at)}</div></div>`
   }).join('')
-  el.scrollIntoView({ block: 'end' })
+  el.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' })
 }
 function insertQuick(t) {
   const ta = document.getElementById('msgInput')
   ta.value = t
   ta.focus()
 }
+// 发消息：走独立 chat 通道，不再重复 join/配对
 function sendMessage() {
   if (!state.currentRoom) return
   const ta = document.getElementById('msgInput')
   const text = ta.value.trim()
   if (!text) { showToast('消息不能为空', true); return }
-  sendJoin(state.currentRoom.deviceId, '', text)
+  wsSend({ type: 'chat', content: text })
   appendMsg({ from: 'me', content: text, at: Date.now() })
   renderMessages()
   ta.value = ''
 }
 
-// ---------- 顶部横幅 ----------
 let bannerTimer = null
 function showBanner(title, body) {
-  document.getElementById('bannerTitle').textContent = '📨 ' + title
+  document.getElementById('bannerTitle').textContent = title
   document.getElementById('bannerBody').textContent = body
   document.getElementById('banner').classList.add('show')
   clearTimeout(bannerTimer)
@@ -1035,8 +1052,21 @@ function showBanner(title, body) {
 function hideBanner() { document.getElementById('banner').classList.remove('show') }
 function openBanner() { hideBanner(); switchTab('msg') }
 
+async function postLocalNotification(title, body) {
+  try {
+    const ln = window.Capacitor?.Plugins?.LocalNotifications
+    if (!ln) return
+    const perm = await ln.requestPermissions()
+    if (perm.display === 'denied') return
+    await ln.schedule({ notifications: [{
+      id: (Date.now() % 2147483000), title: '📨 ' + title, body: body.slice(0, 120),
+      autoCancel: true, channelId: 'cm_messages'
+    }] })
+  } catch {}
+}
+
 // ============================================================
-//  班级管理（完整 CRUD，数据经中继向电脑端索取/写回）
+//  班级管理（CRUD 经 RPC 走电脑端数据库）
 // ============================================================
 async function ensureClassLoaded() {
   if (state.classLoaded) return
@@ -1045,12 +1075,14 @@ async function ensureClassLoaded() {
 }
 async function loadGrades() {
   const el = document.getElementById('gradeChips')
-  el.innerHTML = `<div class="loading">加载中…</div>`
+  el.innerHTML = `<div class="loading"><span class="spin"></span> 加载中…</div>`
   try {
     state.grades = await rpc('getGrades')
     state.selGrade = state.grades.find(g => g.id === state.selGrade?.id) || state.grades[0] || null
     await loadGradeDetails()
-  } catch (e) { el.innerHTML = `<div class="loading">${esc(e.message)}</div>` }
+  } catch (e) {
+    el.innerHTML = `<div class="loading">${esc(e.message)}<br><button class="retry-btn" onclick="loadGrades()">🔄 重试</button></div>`
+  }
 }
 async function loadGradeDetails() {
   renderGrades()
@@ -1084,74 +1116,70 @@ function renderGrades() {
        <span class="x" onclick="event.stopPropagation();editGrade(${g.id})">✏️</span>
        <span class="x" onclick="event.stopPropagation();deleteGrade(${g.id})">🗑</span>
      </div>`).join('')
-  html += `<div class="chip chip-add" onclick="editGrade()">＋ 年级</div>`
+  html += `<div class="chip add" onclick="editGrade()">＋ 年级</div>`
   el.innerHTML = html
 }
 function renderClasses() {
   document.getElementById('classCount').textContent = state.classes.length
   const el = document.getElementById('classList')
-  if (!state.selGrade) { el.innerHTML = `<div class="empty" style="padding:18px">请先添加年级</div>`; return }
-  if (!state.classes.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无班级</div>`; return }
-  el.innerHTML = state.classes.map(c =>
-    `<div class="list-row" style="${state.selClass?.id === c.id ? 'background:rgba(0,212,255,.07);border-radius:10px;padding-left:10px' : ''}">
-       <div class="row-main" onclick="selectClass(${c.id})" style="cursor:pointer">
-         <div class="row-name">🏫 ${esc(c.name)}</div>
-       </div>
-       <div class="row-acts">
-         <button class="icon-btn" onclick="editClass(${c.id})">✏️</button>
-         <button class="icon-btn danger" onclick="deleteClass(${c.id})">🗑</button>
-       </div>
-     </div>`).join('')
+  if (!state.selGrade) { el.innerHTML = `<div class="empty-mini">请先添加年级</div>`; return }
+  if (!state.classes.length) { el.innerHTML = `<div class="empty-mini">暂无班级，点右上角新增</div>`; return }
+  el.innerHTML = state.classes.map(c => `
+    <div class="lrow">
+      <div class="lmain" onclick="selectClass(${c.id})" style="cursor:pointer">
+        <div class="lname" style="${state.selClass?.id === c.id ? 'color:var(--accent)' : ''}">🏫 ${esc(c.name)}</div>
+      </div>
+      <div class="lacts">
+        <button class="ib" onclick="editClass(${c.id})">✏️</button>
+        <button class="ib danger" onclick="deleteClass(${c.id})">🗑</button>
+      </div>
+    </div>`).join('')
 }
 function renderStudents() {
   document.getElementById('studentCount').textContent = state.students.length
   const el = document.getElementById('studentList')
-  if (!state.selClass) { el.innerHTML = `<div class="empty" style="padding:18px">${state.classes.length ? '请先选择班级' : '暂无班级'}</div>`; return }
-  if (!state.students.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无学生</div>`; return }
+  if (!state.selClass) { el.innerHTML = `<div class="empty-mini">${state.classes.length ? '请先选择班级' : '暂无班级'}</div>`; return }
+  if (!state.students.length) { el.innerHTML = `<div class="empty-mini">暂无学生，点右上角新增</div>`; return }
   el.innerHTML = state.students.map(s => {
-    const color = avatarColor(s.name)
     const genderIcon = s.gender === '男' ? '♂' : s.gender === '女' ? '♀' : ''
-    return `<div class="list-row">
-      <div class="row-avatar" style="background:${color}">${esc((s.name || '?').slice(0, 1))}</div>
-      <div class="row-main">
-        <div class="row-name">${esc(s.name)} <span style="font-size:11px;color:var(--text-dim)">${genderIcon}</span></div>
-        <div class="row-sub">抽背权重 ×${s.weight ?? 1}</div>
+    return `<div class="lrow">
+      <div class="lava" style="background:${avatarColor(s.name)}">${esc((s.name || '?').slice(0, 1))}</div>
+      <div class="lmain">
+        <div class="lname">${esc(s.name)} <span style="font-size:11px;color:var(--faint)">${genderIcon}</span></div>
+        <div class="lsub">抽背权重 ×${s.weight ?? 1}</div>
       </div>
-      <div class="row-acts">
-        <button class="icon-btn" onclick="editStudentById(${s.id})">✏️</button>
-        <button class="icon-btn danger" onclick="deleteStudent(${s.id})">🗑</button>
+      <div class="lacts">
+        <button class="ib" onclick="editStudentById(${s.id})">✏️</button>
+        <button class="ib danger" onclick="deleteStudent(${s.id})">🗑</button>
       </div>
     </div>`
   }).join('')
 }
 function renderSubjects() {
   const el = document.getElementById('subjectList')
-  if (!state.selGrade) { el.innerHTML = `<div class="empty" style="padding:18px">请先添加年级</div>`; return }
-  if (!state.subjects.length) { el.innerHTML = `<div class="empty" style="padding:18px">暂无学科</div>`; return }
-  el.innerHTML = state.subjects.map(s =>
-    `<div class="list-row">
-      <div class="row-main"><div class="row-name">📚 ${esc(s.name)}</div></div>
-      <div class="row-acts">
-        <button class="icon-btn" onclick="editSubject(${s.id})">✏️</button>
-        <button class="icon-btn danger" onclick="deleteSubject(${s.id})">🗑</button>
+  if (!state.selGrade) { el.innerHTML = `<div class="empty-mini">请先添加年级</div>`; return }
+  if (!state.subjects.length) { el.innerHTML = `<div class="empty-mini">暂无学科，点右上角新增</div>`; return }
+  el.innerHTML = state.subjects.map(s => `
+    <div class="lrow">
+      <div class="lmain"><div class="lname">📚 ${esc(s.name)}</div></div>
+      <div class="lacts">
+        <button class="ib" onclick="editSubject(${s.id})">✏️</button>
+        <button class="ib danger" onclick="deleteSubject(${s.id})">🗑</button>
       </div>
     </div>`).join('')
 }
 
-async function selectGrade(id) {
-  state.selGrade = state.grades.find(g => g.id === id)
-  await loadGradeDetails()
-}
+async function selectGrade(id) { state.selGrade = state.grades.find(g => g.id === id); await loadGradeDetails() }
 async function selectClass(id) {
   state.selClass = state.classes.find(c => c.id === id)
   if (state.selClass) state.students = await rpc('getStudents', [id]).catch(() => [])
   renderClasses(); renderStudents()
 }
 
-// ---------- 表单弹窗 ----------
+// ---------- 底部表单 ----------
 function openSheet(title, fields, onSubmitText, onSubmit) {
   const sheet = document.getElementById('sheet')
-  sheet.innerHTML = `<h3>${esc(title)}</h3>` + fields.map(f => {
+  sheet.innerHTML = `<div class="handle"></div><h3>${esc(title)}</h3>` + fields.map(f => {
     if (f.type === 'select') {
       return `<div class="field"><label>${esc(f.label)}</label>
         <select class="ipt" id="f_${f.key}">${f.options.map(o =>
@@ -1160,7 +1188,7 @@ function openSheet(title, fields, onSubmitText, onSubmit) {
     return `<div class="field"><label>${esc(f.label)}</label>
       <input class="ipt" id="f_${f.key}" type="${f.type || 'text'}" value="${esc(f.value ?? '')}" placeholder="${esc(f.placeholder || '')}" step="${f.step || ''}" min="${f.min ?? ''}"></div>`
   }).join('') +
-  `<div style="display:flex;gap:10px;margin-top:6px">
+  `<div style="display:flex;gap:10px;margin-top:8px">
      <button class="btn btn-ghost" style="flex:1" onclick="closeSheet()">取消</button>
      <button class="btn btn-primary" style="flex:1" id="sheetOk">${esc(onSubmitText)}</button>
    </div>`
@@ -1173,10 +1201,8 @@ function openSheet(title, fields, onSubmitText, onSubmit) {
       if (f.type === 'number') v = v === '' ? undefined : Number(v)
       values[f.key] = v
     }
-    try {
-      await onSubmit(values)
-      closeSheet()
-    } catch (e) { showToast(e.message || '操作失败', true) }
+    try { await onSubmit(values); closeSheet() }
+    catch (e) { showToast(e.message || '操作失败', true) }
   }
 }
 function closeSheet() {
@@ -1232,7 +1258,7 @@ function editStudent(s) {
     { key: 'name', label: '姓名', value: editing?.name || '', placeholder: '学生姓名' },
     { key: 'gender', label: '性别', type: 'select', value: editing?.gender ?? '',
       options: [{ value: '', label: '保密' }, { value: '男', label: '男' }, { value: '女', label: '女' }] },
-    { key: 'weight', label: '抽背权重（越大越容易被抽中，默认 1）', type: 'number', value: editing?.weight ?? 1, step: '0.1', min: '0' }
+    { key: 'weight', label: '抽背权重（默认 1，越大越容易被抽中）', type: 'number', value: editing?.weight ?? 1, step: '0.1', min: '0' }
   ], '保存', async (v) => {
     if (!v.name?.trim()) throw new Error('姓名不能为空')
     const w = Math.max(0, Number(v.weight) || 1)
@@ -1268,17 +1294,60 @@ async function deleteSubject(id) {
 }
 
 // ============================================================
-//  教材目录（只读）
+//  教材目录（兼容册别结构 / 旧结构 / null 占位）
 // ============================================================
-async function ensureCatalogLoaded() {
-  if (state.catalogLoaded) return
+// node 可能形态：
+//   null                                        → 无教材
+//   { 单元名: [课文...] }                        → 旧结构（单册）
+//   { 上册: {单元...}, 下册: {单元...} }         → 新结构（按册）
+const VOLUME_KEYS = ['上册', '下册', '全一册']
+function subjectVolumes(node) {
+  if (!node || typeof node !== 'object') return []
+  const hasVol = VOLUME_KEYS.some(v => node[v] && typeof node[v] === 'object')
+  if (hasVol) {
+    return VOLUME_KEYS.filter(v => node[v] && typeof node[v] === 'object')
+      .map(v => ({ name: v, units: node[v] }))
+  }
+  return [{ name: '', units: node }]
+}
+function currentSubjectNode() {
+  return state.catalog?.[state.catGrade]?.[state.catSubject] || null
+}
+
+async function ensureCatalogLoaded(force) {
+  if (state.catalogLoaded && !force) return
   state.catalogLoaded = true
   const el = document.getElementById('catUnits')
-  el.innerHTML = `<div class="loading">加载中…</div>`
+  el.innerHTML = `<div class="loading"><span class="spin"></span> 加载中…</div>`
   try {
     state.catalog = await rpc('catalog')
+    // 默认选第一个真正有教材内容的年级/学科
+    pickDefaultCatalog()
     renderCatalog()
-  } catch (e) { el.innerHTML = `<div class="loading">${esc(e.message)}</div>` }
+  } catch (e) {
+    el.innerHTML = `<div class="loading">${esc(e.message)}<br><button class="retry-btn" onclick="ensureCatalogLoaded(true)">🔄 重试</button></div>`
+  }
+}
+function pickDefaultCatalog() {
+  const cat = state.catalog || {}
+  for (const g of Object.keys(cat)) {
+    const subs = cat[g]
+    if (!subs || typeof subs !== 'object') continue
+    for (const s of Object.keys(subs)) {
+      const vols = subjectVolumes(subs[s])
+      if (vols.length && totalArticles(vols) > 0) {
+        state.catGrade = g; state.catSubject = s
+        state.catVol = vols[0].name || null
+        return
+      }
+    }
+  }
+  // 没有任何内容：退化为第一个年级
+  const g0 = Object.keys(cat)[0]
+  if (g0) { state.catGrade = g0; state.catSubject = null; state.catVol = null }
+}
+function totalArticles(vols) {
+  return vols.reduce((n, v) => n + Object.values(v.units || {}).reduce((m, list) => m + (Array.isArray(list) ? list.length : 0), 0), 0)
 }
 function renderCatalog() {
   const cat = state.catalog || {}
@@ -1287,6 +1356,7 @@ function renderCatalog() {
   if (!grades.length) {
     gEl.innerHTML = `<div class="loading">电脑端暂无教材数据</div>`
     document.getElementById('catSubjectChips').innerHTML = ''
+    document.getElementById('catVolChips').innerHTML = ''
     document.getElementById('catUnits').innerHTML = ''
     return
   }
@@ -1296,34 +1366,52 @@ function renderCatalog() {
   renderCatalogSubjects()
 }
 function renderCatalogSubjects() {
-  const subjects = Object.keys(state.catalog?.[state.catGrade] || {})
-  if (!state.catSubject || !state.catalog[state.catGrade][state.catSubject]) state.catSubject = subjects[0] || null
-  document.getElementById('catSubjectChips').innerHTML = subjects.map(s =>
-    `<div class="chip ${state.catSubject === s ? 'sel' : ''}" onclick="selectCatSubject('${esc(s)}')">📖 ${esc(s)}</div>`).join('')
+  const subs = state.catalog?.[state.catGrade]
+  const names = subs && typeof subs === 'object'
+    ? Object.keys(subs).filter(s => subjectVolumes(subs[s]).length > 0) : []
+  if (!names.includes(state.catSubject)) state.catSubject = names[0] || null
+  document.getElementById('catSubjectChips').innerHTML = names.length
+    ? names.map(s =>
+      `<div class="chip ${state.catSubject === s ? 'sel' : ''}" onclick="selectCatSubject('${esc(s)}')">📖 ${esc(s)}</div>`).join('')
+    : `<div class="loading" style="padding:6px">该年级暂无教材</div>`
+  renderCatalogVolumes()
+}
+function renderCatalogVolumes() {
+  const vols = subjectVolumes(currentSubjectNode())
+  const names = vols.map(v => v.name)
+  if (!names.includes(state.catVol)) state.catVol = names[0] ?? null
+  const el = document.getElementById('catVolChips')
+  el.innerHTML = vols.length > 1 || vols[0]?.name
+    ? vols.map(v =>
+      `<div class="chip ${state.catVol === v.name ? 'sel' : ''}" onclick="selectCatVol('${esc(v.name)}')">📚 ${esc(v.name || '全一册')}</div>`).join('')
+    : ''
   renderCatalogUnits()
 }
 function renderCatalogUnits() {
   const el = document.getElementById('catUnits')
-  const units = state.catalog?.[state.catGrade]?.[state.catSubject]
-  if (!units) { el.innerHTML = `<div class="empty" style="padding:20px">暂无课文</div>`; return }
+  const vols = subjectVolumes(currentSubjectNode())
+  const vol = vols.find(v => v.name === state.catVol) || vols[0]
+  const units = vol?.units
+  if (!units) { el.innerHTML = `<div class="empty-mini">暂无教材</div>`; return }
   catArticleStore.length = 0
   let html = ''
   for (const [unit, list] of Object.entries(units)) {
     if (unit) html += `<div class="cat-unit-head">📂 ${esc(unit)}</div>`
-    html += `<div class="cat-unit" style="${unit ? 'border-top:none;border-radius:0 0 12px 12px' : ''}">`
-    html += (list || []).map((q) => {
+    html += `<div style="${unit ? 'margin-top:-7px' : ''}">`
+    html += (list || []).map(q => {
       const idx = catArticleStore.push(q) - 1
       return `<div class="cat-q" onclick="showArticleAt(${idx})">
-         <span>📄</span><span class="qt">${esc(q.title || '未命名')}</span><span class="arrow">阅读 ›</span>
+         <span class="qi">📄</span><span class="qt">${esc(q.title || '未命名')}</span><span class="arrow">阅读 ›</span>
        </div>`
     }).join('')
     html += `</div>`
   }
-  el.innerHTML = html || `<div class="empty" style="padding:20px">暂无课文</div>`
+  el.innerHTML = html || `<div class="empty-mini">暂无课文</div>`
 }
 const catArticleStore = []
-function selectCatGrade(g) { state.catGrade = g; state.catSubject = null; renderCatalog() }
-function selectCatSubject(s) { state.catSubject = s; renderCatalogUnits() }
+function selectCatGrade(g) { state.catGrade = g; state.catSubject = null; state.catVol = null; renderCatalog() }
+function selectCatSubject(s) { state.catSubject = s; state.catVol = null; renderCatalogVolumes() }
+function selectCatVol(v) { state.catVol = v; renderCatalogUnits() }
 function showArticleAt(i) {
   const q = catArticleStore[i]
   if (!q) return
@@ -1332,13 +1420,13 @@ function showArticleAt(i) {
   document.getElementById('infoMask').classList.add('show')
   document.getElementById('infoModal').classList.add('show')
 }
-function closeInfo() {
+function closeArticle() {
   document.getElementById('infoMask').classList.remove('show')
   document.getElementById('infoModal').classList.remove('show')
 }
 
 // ============================================================
-//  我的：昵称 / 保活 / 中继 / 更新 / 配对
+//  我的 / 设置
 // ============================================================
 function saveSender() {
   const v = document.getElementById('senderInput').value.trim() || '手机用户'
@@ -1391,10 +1479,10 @@ function cmpVersion(a, b) {
 }
 async function checkAppUpdate() {
   const box = document.getElementById('updateResult')
-  box.innerHTML = `<div class="row-sub" style="padding:6px 2px">正在检查…</div>`
+  box.innerHTML = `<div class="kv-row"><span class="k">状态</span><span class="v">正在检查…</span></div>`
   try {
     const repo = state.appInfo?.updateRepo
-    if (!repo) { box.innerHTML = `<div class="row-sub" style="padding:6px 2px">电脑端未配置更新仓库，请在电脑设置中填写 GitHub 仓库（owner/repo）</div>`; return }
+    if (!repo) { box.innerHTML = `<div class="kv-row"><span class="k">状态</span><span class="v" style="color:var(--warn)">电脑端未配置更新仓库</span></div>`; return }
     const r = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
       headers: { Accept: 'application/vnd.github+json' }
     })
@@ -1404,28 +1492,27 @@ async function checkAppUpdate() {
     const current = state.appInfo?.version || '0'
     const apk = (rel.assets || []).find(a => String(a.name).toLowerCase().endsWith('.apk'))
     if (cmpVersion(latest, current) <= 0) {
-      box.innerHTML = `<div class="kv-row"><span class="k">检查结果</span><span class="v" style="color:var(--success)">已是最新版本 v${esc(current)}</span></div>`
+      box.innerHTML = `<div class="kv-row"><span class="k">检查结果</span><span class="v" style="color:var(--ok)">已是最新版本 v${esc(current)}</span></div>`
       return
     }
     box.innerHTML = `
       <div class="kv-row"><span class="k">最新版本</span><span class="v" style="color:var(--accent)">v${esc(latest)}</span></div>
-      ${rel.body ? `<div class="update-notes">${esc(rel.body)}</div>` : ''}
+      ${rel.body ? `<div style="font-size:11.5px;color:var(--dim);line-height:1.7;margin:6px 0;white-space:pre-wrap">${esc(rel.body)}</div>` : ''}
       ${apk
         ? `<button class="btn btn-primary btn-block btn-sm" onclick="downloadApk('${apk.browser_download_url}')">⬇️ 下载新版 APK（${(apk.size / 1048576).toFixed(1)} MB）</button>
-           <div class="row-sub" style="padding:8px 2px 0;font-size:11px;line-height:1.6">下载完成后点击通知栏/下载列表里的 APK 安装；如系统拦截请允许「安装未知应用」。</div>`
+           <div style="font-size:10.5px;color:var(--faint);padding:7px 2px 0;line-height:1.6">下载完成后点击通知栏/下载列表里的 APK 安装；如系统拦截请允许「安装未知应用」。</div>`
         : `<button class="btn btn-ghost btn-block btn-sm" onclick="window.open('${esc(rel.html_url)}','_blank')">打开下载页面</button>`}`
   } catch (e) {
-    box.innerHTML = `<div class="row-sub" style="padding:6px 2px;color:var(--danger)">检查失败：${esc(e.message)}</div>`
+    box.innerHTML = `<div class="kv-row"><span class="k">状态</span><span class="v" style="color:var(--danger)">检查失败：${esc(e.message)}</span></div>`
   }
 }
 function downloadApk(url) {
-  // 交给系统浏览器下载（App 内不引第三方下载/安装插件）
   window.open(url, '_blank')
   showToast('已在浏览器中开始下载，完成后点击 APK 安装')
 }
 
 // ============================================================
-//  App 后台待命（standby）/ 保活 / 本地通知
+//  App 后台待命 / 保活 / 连接请求
 // ============================================================
 function syncMainStandby() {
   if (!isNative || !keepAliveEnabled()) return
@@ -1477,10 +1564,9 @@ function createStandbyConn(relayUrl, hosts) {
   open()
   return { stop() { stopped = true; if (timer) clearTimeout(timer); try { ws.close() } catch {} } }
 }
-
 function handleIncomingNotify(msg) {
   state._lastNotify = msg
-  postLocalNotification(msg.title || '电脑请求连接', msg.body || '')
+  if (document.hidden || !state.currentRoom) postLocalNotification(msg.title || '电脑请求连接', msg.body || '')
   if (!document.hidden) showNotifyDialog(msg)
 }
 function showNotifyDialog(msg) {
@@ -1502,16 +1588,6 @@ function declineNotify() {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && state._lastNotify) showNotifyDialog(state._lastNotify)
 })
-
-async function postLocalNotification(title, body) {
-  try {
-    const ln = window.Capacitor?.Plugins?.LocalNotifications
-    if (!ln) return
-    const perm = await ln.requestPermissions()
-    if (perm.display === 'denied') return
-    await ln.schedule({ notifications: [{ id: (Date.now() % 2147483000), title, body, autoCancel: true }] })
-  } catch {}
-}
 function toggleKeepAlive(on) {
   localStorage.setItem('cm_keepalive', on ? '1' : '0')
   applyNativeKeepAlive()
@@ -1525,6 +1601,13 @@ function applyNativeKeepAlive() {
     else ka.stop().catch(() => {})
   } catch {}
 }
+
+// 点击系统通知 → 回到前台并打开消息页
+try {
+  window.Capacitor?.Plugins?.LocalNotifications?.addListener?.('localNotificationActionPerformed', () => {
+    if (state.currentRoom) switchTab('msg')
+  })
+} catch {}
 
 // ============================================================
 //  工具
@@ -1541,11 +1624,18 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 }
+const AVATAR_PALETTE = [
+  'linear-gradient(135deg,#00d4ff,#0066ff)',
+  'linear-gradient(135deg,#7c3aed,#ec4899)',
+  'linear-gradient(135deg,#f59e0b,#ef4444)',
+  'linear-gradient(135deg,#10b981,#06b6d4)',
+  'linear-gradient(135deg,#8b5cf6,#6366f1)',
+  'linear-gradient(135deg,#ec4899,#f43f5e)'
+]
 function avatarColor(name) {
-  const palette = ['#00b8d9', '#7c3aed', '#e8590c', '#2f9e44', '#e64980', '#f08c00', '#1971c2', '#9c36b5']
   let h = 0
   for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return palette[h % palette.length]
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length]
 }
 
 // ============================================================

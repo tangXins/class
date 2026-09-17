@@ -44,10 +44,15 @@ contextBridge.exposeInMainWorld('api', {
   // ============ 教材目录（纯 JSON，与 SQLite 解耦）============
   catalog: () => ipcRenderer.invoke('catalog:get'),
 
+  // ============ 英语单词词库 ============
+  words: (file) => ipcRenderer.invoke('words:get', file),
+
   // ============ TTS ============
   tts: {
-    speak: (text) => ipcRenderer.invoke('tts:speak', text),
-    listVoices: () => ipcRenderer.invoke('tts:listVoices')
+    speak: (text, opts) => ipcRenderer.invoke('tts:speak', text, opts),
+    awaitSpeak: (text, opts) => ipcRenderer.invoke('tts:awaitSpeak', text, opts),
+    listVoices: () => ipcRenderer.invoke('tts:listVoices'),
+    voices: () => ipcRenderer.invoke('tts:voices')
   },
 
   // ============ 开机自启 ============

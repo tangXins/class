@@ -510,8 +510,10 @@ function createWindow() {
 // ========== IPC 路由 ==========
 function setupIpc() {
   // TTS（tts 可能还没 init，用可选链兜底）
-  ipcMain.handle('tts:speak', (_e, text) => tts?.speak(text))
+  ipcMain.handle('tts:speak', (_e, text, opts) => tts?.speak(text, opts || {}))
+  ipcMain.handle('tts:awaitSpeak', (_e, text, opts) => tts?.awaitSpeak(text, opts || {}))
   ipcMain.handle('tts:listVoices', () => tts?.listVoices() || [])
+  ipcMain.handle('tts:voices', () => tts?.getInstalledVoices() || [])
 
   // 开机自启
   ipcMain.handle('autoLaunch:set', (_e, enable) => {

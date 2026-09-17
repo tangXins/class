@@ -69,6 +69,17 @@ function register(ipcMain, db) {
     } catch { return null }
   })
 
+  // ============ 英语单词词库（按年级文件组织，听写功能读取）============
+  ipcMain.handle('words:get', (_e, file) => {
+    // 仅允许 templates 目录下的 words-*.json，防止路径穿越
+    const safeFile = typeof file === 'string' && /^words-[\w-]+\.json$/.test(file) ? file : null
+    const p = path.join(__dirname, '..', 'templates', safeFile || 'words-en-9a.json')
+    if (!fs.existsSync(p)) return null
+    try {
+      return JSON.parse(fs.readFileSync(p, 'utf-8'))
+    } catch { return null }
+  })
+
   ipcMain.handle('db:applyTemplate', (_e, file, clear) => {
     const tplPath = path.join(__dirname, '..', 'templates', file)
     if (!fs.existsSync(tplPath)) return { error: '模板文件不存在' }
